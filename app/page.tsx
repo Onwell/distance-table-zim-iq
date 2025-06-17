@@ -1,13 +1,14 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Search, MapPin, Route } from "lucide-react"
+import { Search, Route } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { Navigation } from "@/components/navigation"
 
 // Sample distance data for Zimbabwe cities
 const distanceData = [
@@ -73,13 +74,10 @@ export default function DistanceTableSystem() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <Navigation />
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="text-center space-y-4">
-          <div className="flex items-center justify-center gap-2">
-            <MapPin className="h-8 w-8 text-blue-600" />
-            <h1 className="text-4xl font-bold text-gray-900">Zimbabwe Distance Calculator</h1>
-          </div>
+        <div className="text-center space-y-4 pt-4">
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Calculate distances and travel times between major cities in Zimbabwe. Find the shortest routes for your
             journey planning.
