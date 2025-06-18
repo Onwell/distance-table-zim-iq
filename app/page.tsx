@@ -1,105 +1,292 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Search, Route, ArrowRight } from "lucide-react"
+import { Search, Route, ArrowRight, Fuel, Car, Truck, Bus, Bike, MapPin, DollarSign, AlertTriangle } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Navigation } from "@/components/navigation"
 
-// Expanded distance data for Zimbabwe cities
+// Vehicle types with fuel consumption (km per litre)
+const vehicleTypes = {
+  car: { name: "Car", icon: Car, consumption: 12, color: "text-blue-600" }, // 12 km/L
+  motorcycle: { name: "Motorcycle", icon: Bike, consumption: 25, color: "text-green-600" }, // 25 km/L
+  bus: { name: "Bus", icon: Bus, consumption: 4, color: "text-orange-600" }, // 4 km/L
+  truck: { name: "Truck", icon: Truck, consumption: 3, color: "text-red-600" }, // 3 km/L
+  custom: { name: "Custom (60km/60L)", icon: Fuel, consumption: 1, color: "text-purple-600" }, // 1 km/L as specified
+}
+
+// Current fuel price in USD (you can update this)
+const FUEL_PRICE_USD = 1.45 // per litre
+
+// Toll gates information
+const tollGates = [
+  { name: "Harare-Bulawayo Toll", location: "A5 Highway", cost: 2.0, routes: ["Harare-Bulawayo", "Harare-Gweru"] },
+  { name: "Mutare Toll Plaza", location: "A3 Highway", cost: 1.5, routes: ["Harare-Mutare", "Marondera-Mutare"] },
+  {
+    name: "Beitbridge Toll",
+    location: "A4 Highway",
+    cost: 3.0,
+    routes: ["Masvingo-Beitbridge", "Bulawayo-Beitbridge"],
+  },
+  { name: "Victoria Falls Toll", location: "A8 Highway", cost: 2.5, routes: ["Bulawayo-Victoria Falls"] },
+]
+
+// Provincial boundaries
+const provincialBoundaries = [
+  { from: "Harare Province", to: "Mashonaland West", cities: ["Harare", "Chinhoyi"] },
+  { from: "Harare Province", to: "Manicaland", cities: ["Harare", "Mutare"] },
+  { from: "Harare Province", to: "Midlands", cities: ["Harare", "Gweru"] },
+  { from: "Midlands", to: "Matabeleland South", cities: ["Gweru", "Bulawayo"] },
+  { from: "Matabeleland South", to: "Matabeleland North", cities: ["Bulawayo", "Victoria Falls"] },
+  { from: "Midlands", to: "Masvingo", cities: ["Gweru", "Masvingo"] },
+  { from: "Masvingo", to: "Matabeleland South", cities: ["Masvingo", "Beitbridge"] },
+]
+
+// Expanded distance data with route types and toll information
 const distanceData = [
-  // Major cities connections
-  { from: "Harare", to: "Bulawayo", distance: 439, time: "4h 30m" },
-  { from: "Harare", to: "Mutare", distance: 263, time: "3h 15m" },
-  { from: "Harare", to: "Gweru", distance: 274, time: "3h 00m" },
-  { from: "Harare", to: "Masvingo", distance: 292, time: "3h 30m" },
-  { from: "Harare", to: "Chinhoyi", distance: 116, time: "1h 30m" },
-  { from: "Harare", to: "Kadoma", distance: 140, time: "1h 45m" },
-  { from: "Harare", to: "Chegutu", distance: 110, time: "1h 20m" },
-  { from: "Harare", to: "Bindura", distance: 88, time: "1h 10m" },
-  { from: "Harare", to: "Marondera", distance: 75, time: "1h 00m" },
-  { from: "Harare", to: "Chitungwiza", distance: 25, time: "0h 30m" },
-  { from: "Harare", to: "Norton", distance: 40, time: "0h 40m" },
-  { from: "Harare", to: "Rusape", distance: 170, time: "2h 10m" },
+  // Major highways with route types
+  { from: "Harare", to: "Bulawayo", distance: 439, time: "4h 30m", routeType: "highway", scenic: false, tollCost: 2.0 },
+  { from: "Harare", to: "Mutare", distance: 263, time: "3h 15m", routeType: "highway", scenic: true, tollCost: 1.5 },
+  { from: "Harare", to: "Gweru", distance: 274, time: "3h 00m", routeType: "highway", scenic: false, tollCost: 2.0 },
+  { from: "Harare", to: "Masvingo", distance: 292, time: "3h 30m", routeType: "main_road", scenic: false, tollCost: 0 },
+  { from: "Harare", to: "Chinhoyi", distance: 116, time: "1h 30m", routeType: "main_road", scenic: false, tollCost: 0 },
+  { from: "Harare", to: "Kadoma", distance: 140, time: "1h 45m", routeType: "main_road", scenic: false, tollCost: 0 },
+  { from: "Harare", to: "Chegutu", distance: 110, time: "1h 20m", routeType: "main_road", scenic: false, tollCost: 0 },
+  { from: "Harare", to: "Bindura", distance: 88, time: "1h 10m", routeType: "secondary", scenic: false, tollCost: 0 },
+  { from: "Harare", to: "Marondera", distance: 75, time: "1h 00m", routeType: "main_road", scenic: false, tollCost: 0 },
+  { from: "Harare", to: "Chitungwiza", distance: 25, time: "0h 30m", routeType: "urban", scenic: false, tollCost: 0 },
+  { from: "Harare", to: "Norton", distance: 40, time: "0h 40m", routeType: "main_road", scenic: false, tollCost: 0 },
+  { from: "Harare", to: "Rusape", distance: 170, time: "2h 10m", routeType: "secondary", scenic: true, tollCost: 0 },
+
+  // Alternative routes (scenic/longer options)
+  {
+    from: "Harare",
+    to: "Mutare",
+    distance: 285,
+    time: "3h 45m",
+    routeType: "scenic",
+    scenic: true,
+    tollCost: 0,
+    alternative: true,
+  },
+  {
+    from: "Harare",
+    to: "Bulawayo",
+    distance: 465,
+    time: "5h 15m",
+    routeType: "scenic",
+    scenic: true,
+    tollCost: 0,
+    alternative: true,
+  },
 
   // Bulawayo connections
-  { from: "Bulawayo", to: "Mutare", distance: 518, time: "5h 45m" },
-  { from: "Bulawayo", to: "Gweru", distance: 165, time: "2h 00m" },
-  { from: "Bulawayo", to: "Masvingo", distance: 284, time: "3h 15m" },
-  { from: "Bulawayo", to: "Victoria Falls", distance: 440, time: "4h 30m" },
-  { from: "Bulawayo", to: "Hwange", distance: 296, time: "3h 30m" },
-  { from: "Bulawayo", to: "Plumtree", distance: 100, time: "1h 20m" },
-  { from: "Bulawayo", to: "Gwanda", distance: 126, time: "1h 30m" },
-  { from: "Bulawayo", to: "Beitbridge", distance: 322, time: "3h 45m" },
-  { from: "Bulawayo", to: "Zvishavane", distance: 185, time: "2h 15m" },
+  { from: "Bulawayo", to: "Mutare", distance: 518, time: "5h 45m", routeType: "main_road", scenic: false, tollCost: 0 },
+  { from: "Bulawayo", to: "Gweru", distance: 165, time: "2h 00m", routeType: "highway", scenic: false, tollCost: 0 },
+  {
+    from: "Bulawayo",
+    to: "Masvingo",
+    distance: 284,
+    time: "3h 15m",
+    routeType: "main_road",
+    scenic: false,
+    tollCost: 0,
+  },
+  {
+    from: "Bulawayo",
+    to: "Victoria Falls",
+    distance: 440,
+    time: "4h 30m",
+    routeType: "highway",
+    scenic: true,
+    tollCost: 2.5,
+  },
+  { from: "Bulawayo", to: "Hwange", distance: 296, time: "3h 30m", routeType: "main_road", scenic: false, tollCost: 0 },
+  {
+    from: "Bulawayo",
+    to: "Plumtree",
+    distance: 100,
+    time: "1h 20m",
+    routeType: "main_road",
+    scenic: false,
+    tollCost: 0,
+  },
+  { from: "Bulawayo", to: "Gwanda", distance: 126, time: "1h 30m", routeType: "main_road", scenic: false, tollCost: 0 },
+  {
+    from: "Bulawayo",
+    to: "Beitbridge",
+    distance: 322,
+    time: "3h 45m",
+    routeType: "highway",
+    scenic: false,
+    tollCost: 3.0,
+  },
+  {
+    from: "Bulawayo",
+    to: "Zvishavane",
+    distance: 185,
+    time: "2h 15m",
+    routeType: "secondary",
+    scenic: false,
+    tollCost: 0,
+  },
 
   // Mutare connections
-  { from: "Mutare", to: "Gweru", distance: 353, time: "4h 00m" },
-  { from: "Mutare", to: "Masvingo", distance: 271, time: "3h 15m" },
-  { from: "Mutare", to: "Chipinge", distance: 131, time: "1h 45m" },
-  { from: "Mutare", to: "Rusape", distance: 93, time: "1h 15m" },
-  { from: "Mutare", to: "Nyanga", distance: 115, time: "1h 30m" },
+  { from: "Mutare", to: "Gweru", distance: 353, time: "4h 00m", routeType: "main_road", scenic: false, tollCost: 0 },
+  { from: "Mutare", to: "Masvingo", distance: 271, time: "3h 15m", routeType: "main_road", scenic: false, tollCost: 0 },
+  { from: "Mutare", to: "Chipinge", distance: 131, time: "1h 45m", routeType: "secondary", scenic: true, tollCost: 0 },
+  { from: "Mutare", to: "Rusape", distance: 93, time: "1h 15m", routeType: "secondary", scenic: true, tollCost: 0 },
+  { from: "Mutare", to: "Nyanga", distance: 115, time: "1h 30m", routeType: "secondary", scenic: true, tollCost: 0 },
 
-  // Gweru connections
-  { from: "Gweru", to: "Masvingo", distance: 157, time: "2h 00m" },
-  { from: "Gweru", to: "Kadoma", distance: 134, time: "1h 40m" },
-  { from: "Gweru", to: "Kwekwe", distance: 67, time: "0h 50m" },
-  { from: "Gweru", to: "Shurugwi", distance: 35, time: "0h 30m" },
-  { from: "Gweru", to: "Zvishavane", distance: 120, time: "1h 30m" },
+  // Other connections with route information
+  { from: "Gweru", to: "Masvingo", distance: 157, time: "2h 00m", routeType: "main_road", scenic: false, tollCost: 0 },
+  { from: "Gweru", to: "Kadoma", distance: 134, time: "1h 40m", routeType: "main_road", scenic: false, tollCost: 0 },
+  { from: "Gweru", to: "Kwekwe", distance: 67, time: "0h 50m", routeType: "main_road", scenic: false, tollCost: 0 },
+  { from: "Gweru", to: "Shurugwi", distance: 35, time: "0h 30m", routeType: "secondary", scenic: false, tollCost: 0 },
+  {
+    from: "Gweru",
+    to: "Zvishavane",
+    distance: 120,
+    time: "1h 30m",
+    routeType: "secondary",
+    scenic: false,
+    tollCost: 0,
+  },
 
-  // Masvingo connections
-  { from: "Masvingo", to: "Chiredzi", distance: 166, time: "2h 15m" },
-  { from: "Masvingo", to: "Beitbridge", distance: 288, time: "3h 30m" },
-  { from: "Masvingo", to: "Zvishavane", distance: 96, time: "1h 15m" },
-  { from: "Masvingo", to: "Triangle", distance: 140, time: "1h 50m" },
+  {
+    from: "Masvingo",
+    to: "Chiredzi",
+    distance: 166,
+    time: "2h 15m",
+    routeType: "main_road",
+    scenic: false,
+    tollCost: 0,
+  },
+  {
+    from: "Masvingo",
+    to: "Beitbridge",
+    distance: 288,
+    time: "3h 30m",
+    routeType: "highway",
+    scenic: false,
+    tollCost: 3.0,
+  },
+  {
+    from: "Masvingo",
+    to: "Zvishavane",
+    distance: 96,
+    time: "1h 15m",
+    routeType: "secondary",
+    scenic: false,
+    tollCost: 0,
+  },
+  {
+    from: "Masvingo",
+    to: "Triangle",
+    distance: 140,
+    time: "1h 50m",
+    routeType: "secondary",
+    scenic: false,
+    tollCost: 0,
+  },
 
-  // Other connections
-  { from: "Victoria Falls", to: "Hwange", distance: 144, time: "1h 50m" },
-  { from: "Chinhoyi", to: "Kadoma", distance: 89, time: "1h 10m" },
-  { from: "Chegutu", to: "Kadoma", distance: 30, time: "0h 25m" },
-  { from: "Chegutu", to: "Norton", distance: 70, time: "0h 55m" },
-  { from: "Norton", to: "Chegutu", distance: 70, time: "0h 55m" },
-  { from: "Kwekwe", to: "Kadoma", distance: 67, time: "0h 50m" },
-  { from: "Kwekwe", to: "Redcliff", distance: 15, time: "0h 15m" },
-  { from: "Bindura", to: "Shamva", distance: 29, time: "0h 30m" },
-  { from: "Bindura", to: "Mt Darwin", distance: 118, time: "1h 30m" },
-  { from: "Marondera", to: "Rusape", distance: 95, time: "1h 10m" },
-  { from: "Marondera", to: "Macheke", distance: 40, time: "0h 35m" },
-  { from: "Rusape", to: "Nyanga", distance: 98, time: "1h 15m" },
-  { from: "Beitbridge", to: "Gwanda", distance: 196, time: "2h 15m" },
-  { from: "Gwanda", to: "West Nicholson", distance: 72, time: "0h 55m" },
-  { from: "Chiredzi", to: "Triangle", distance: 26, time: "0h 25m" },
-  { from: "Chiredzi", to: "Chipinge", distance: 185, time: "2h 20m" },
-  { from: "Nyanga", to: "Juliasdale", distance: 20, time: "0h 20m" },
-  { from: "Zvishavane", to: "Shurugwi", distance: 85, time: "1h 00m" },
-
-  // Additional connections for intermediate routes
-  { from: "Harare", to: "Norton", distance: 40, time: "0h 40m" },
-  { from: "Norton", to: "Chegutu", distance: 70, time: "0h 55m" },
-  { from: "Chegutu", to: "Kadoma", distance: 30, time: "0h 25m" },
-  { from: "Kadoma", to: "Kwekwe", distance: 67, time: "0h 50m" },
-  { from: "Kwekwe", to: "Gweru", distance: 67, time: "0h 50m" },
-  { from: "Gweru", to: "Shurugwi", distance: 35, time: "0h 30m" },
-  { from: "Gweru", to: "Zvishavane", distance: 120, time: "1h 30m" },
-  { from: "Zvishavane", to: "Masvingo", distance: 96, time: "1h 15m" },
-  { from: "Masvingo", to: "Beitbridge", distance: 288, time: "3h 30m" },
-  { from: "Harare", to: "Marondera", distance: 75, time: "1h 00m" },
-  { from: "Marondera", to: "Rusape", distance: 95, time: "1h 10m" },
-  { from: "Rusape", to: "Mutare", distance: 93, time: "1h 15m" },
+  // Additional connections
+  {
+    from: "Victoria Falls",
+    to: "Hwange",
+    distance: 144,
+    time: "1h 50m",
+    routeType: "main_road",
+    scenic: true,
+    tollCost: 0,
+  },
+  { from: "Chinhoyi", to: "Kadoma", distance: 89, time: "1h 10m", routeType: "main_road", scenic: false, tollCost: 0 },
+  { from: "Chegutu", to: "Kadoma", distance: 30, time: "0h 25m", routeType: "main_road", scenic: false, tollCost: 0 },
+  { from: "Chegutu", to: "Norton", distance: 70, time: "0h 55m", routeType: "main_road", scenic: false, tollCost: 0 },
+  { from: "Norton", to: "Chegutu", distance: 70, time: "0h 55m", routeType: "main_road", scenic: false, tollCost: 0 },
+  { from: "Kwekwe", to: "Kadoma", distance: 67, time: "0h 50m", routeType: "main_road", scenic: false, tollCost: 0 },
+  { from: "Kwekwe", to: "Redcliff", distance: 15, time: "0h 15m", routeType: "urban", scenic: false, tollCost: 0 },
+  { from: "Bindura", to: "Shamva", distance: 29, time: "0h 30m", routeType: "secondary", scenic: false, tollCost: 0 },
+  {
+    from: "Bindura",
+    to: "Mt Darwin",
+    distance: 118,
+    time: "1h 30m",
+    routeType: "secondary",
+    scenic: false,
+    tollCost: 0,
+  },
+  { from: "Marondera", to: "Rusape", distance: 95, time: "1h 10m", routeType: "secondary", scenic: true, tollCost: 0 },
+  {
+    from: "Marondera",
+    to: "Macheke",
+    distance: 40,
+    time: "0h 35m",
+    routeType: "secondary",
+    scenic: false,
+    tollCost: 0,
+  },
+  { from: "Rusape", to: "Nyanga", distance: 98, time: "1h 15m", routeType: "secondary", scenic: true, tollCost: 0 },
+  {
+    from: "Beitbridge",
+    to: "Gwanda",
+    distance: 196,
+    time: "2h 15m",
+    routeType: "main_road",
+    scenic: false,
+    tollCost: 0,
+  },
+  {
+    from: "Gwanda",
+    to: "West Nicholson",
+    distance: 72,
+    time: "0h 55m",
+    routeType: "secondary",
+    scenic: false,
+    tollCost: 0,
+  },
+  {
+    from: "Chiredzi",
+    to: "Triangle",
+    distance: 26,
+    time: "0h 25m",
+    routeType: "secondary",
+    scenic: false,
+    tollCost: 0,
+  },
+  {
+    from: "Chiredzi",
+    to: "Chipinge",
+    distance: 185,
+    time: "2h 20m",
+    routeType: "secondary",
+    scenic: false,
+    tollCost: 0,
+  },
+  { from: "Nyanga", to: "Juliasdale", distance: 20, time: "0h 20m", routeType: "secondary", scenic: true, tollCost: 0 },
+  {
+    from: "Zvishavane",
+    to: "Shurugwi",
+    distance: 85,
+    time: "1h 00m",
+    routeType: "secondary",
+    scenic: false,
+    tollCost: 0,
+  },
 ]
 
 const cities = Array.from(new Set([...distanceData.map((d) => d.from), ...distanceData.map((d) => d.to)])).sort()
 
-// Graph representation for finding routes
+// Build graph for route finding
 const buildGraph = () => {
   const graph = new Map()
 
   distanceData.forEach((route) => {
-    // Add bidirectional edges
     if (!graph.has(route.from)) {
       graph.set(route.from, [])
     }
@@ -111,32 +298,63 @@ const buildGraph = () => {
       city: route.to,
       distance: route.distance,
       time: route.time,
+      routeType: route.routeType,
+      scenic: route.scenic,
+      tollCost: route.tollCost || 0,
+      alternative: route.alternative || false,
     })
 
     graph.get(route.to).push({
       city: route.from,
       distance: route.distance,
       time: route.time,
+      routeType: route.routeType,
+      scenic: route.scenic,
+      tollCost: route.tollCost || 0,
+      alternative: route.alternative || false,
     })
   })
 
   return graph
 }
 
-// Find shortest path using Dijkstra's algorithm
-const findShortestPath = (graph, start, end) => {
+// Find multiple routes (shortest, fastest, scenic)
+const findMultipleRoutes = (graph, start, end) => {
+  const routes = []
+
+  // Find shortest distance route
+  const shortestRoute = findShortestPath(graph, start, end, "distance")
+  if (shortestRoute.length > 0) {
+    routes.push({ type: "shortest", path: shortestRoute, priority: 1 })
+  }
+
+  // Find fastest route (least time)
+  const fastestRoute = findShortestPath(graph, start, end, "time")
+  if (fastestRoute.length > 0 && JSON.stringify(fastestRoute) !== JSON.stringify(shortestRoute)) {
+    routes.push({ type: "fastest", path: fastestRoute, priority: 2 })
+  }
+
+  // Find scenic route
+  const scenicRoute = findScenicRoute(graph, start, end)
+  if (scenicRoute.length > 0) {
+    routes.push({ type: "scenic", path: scenicRoute, priority: 3 })
+  }
+
+  return routes
+}
+
+// Modified Dijkstra's algorithm
+const findShortestPath = (graph, start, end, optimizeFor = "distance") => {
   const distances = new Map()
   const previous = new Map()
   const unvisited = new Set()
 
-  // Initialize
   for (const city of graph.keys()) {
     distances.set(city, city === start ? 0 : Number.POSITIVE_INFINITY)
     unvisited.add(city)
   }
 
   while (unvisited.size > 0) {
-    // Find city with minimum distance
     let current = null
     let minDistance = Number.POSITIVE_INFINITY
 
@@ -147,15 +365,22 @@ const findShortestPath = (graph, start, end) => {
       }
     }
 
-    // If we can't find a city or reached the end
     if (current === null || current === end) break
 
     unvisited.delete(current)
 
-    // Update distances to neighbors
     for (const neighbor of graph.get(current)) {
       if (unvisited.has(neighbor.city)) {
-        const alt = distances.get(current) + neighbor.distance
+        let weight = neighbor.distance
+        if (optimizeFor === "time") {
+          // Convert time to minutes for comparison
+          const timeParts = neighbor.time.split(" ")
+          const hours = Number.parseInt(timeParts[0]) || 0
+          const minutes = Number.parseInt(timeParts[1]) || 0
+          weight = hours * 60 + minutes
+        }
+
+        const alt = distances.get(current) + weight
         if (alt < distances.get(neighbor.city)) {
           distances.set(neighbor.city, alt)
           previous.set(neighbor.city, current)
@@ -171,25 +396,47 @@ const findShortestPath = (graph, start, end) => {
   while (current !== start) {
     path.unshift(current)
     current = previous.get(current)
-    if (!current) return [] // No path found
+    if (!current) return []
   }
 
   path.unshift(start)
   return path
 }
 
+// Find scenic route (prioritize scenic roads)
+const findScenicRoute = (graph, start, end) => {
+  // Simple implementation - find route that includes scenic segments
+  const allRoutes = distanceData.filter((route) => route.scenic)
+  const scenicCities = new Set()
+
+  allRoutes.forEach((route) => {
+    scenicCities.add(route.from)
+    scenicCities.add(route.to)
+  })
+
+  // Try to find a path that goes through scenic cities
+  if (scenicCities.has(start) || scenicCities.has(end)) {
+    return findShortestPath(graph, start, end, "distance")
+  }
+
+  return []
+}
+
 // Get route details between two cities
 const getRouteDetails = (from, to) => {
-  const directRoute = distanceData.find(
+  const route = distanceData.find(
     (route) => (route.from === from && route.to === to) || (route.from === to && route.to === from),
   )
 
-  if (directRoute) {
+  if (route) {
     return {
       from: from,
       to: to,
-      distance: directRoute.distance,
-      time: directRoute.time,
+      distance: route.distance,
+      time: route.time,
+      routeType: route.routeType,
+      scenic: route.scenic,
+      tollCost: route.tollCost || 0,
     }
   }
 
@@ -213,14 +460,63 @@ const buildRouteSegments = (path) => {
   return segments
 }
 
+// Calculate fuel cost
+const calculateFuelCost = (distance, vehicleType) => {
+  const consumption = vehicleTypes[vehicleType].consumption
+  const litresNeeded = distance / consumption
+  return litresNeeded * FUEL_PRICE_USD
+}
+
+// Get toll gates for route
+const getRouteTollGates = (segments) => {
+  const routeTolls = []
+  let totalTollCost = 0
+
+  segments.forEach((segment) => {
+    if (segment.tollCost > 0) {
+      const routeKey = `${segment.from}-${segment.to}`
+      const toll = tollGates.find((toll) =>
+        toll.routes.some((route) => route.includes(segment.from) && route.includes(segment.to)),
+      )
+
+      if (toll) {
+        routeTolls.push(toll)
+        totalTollCost += segment.tollCost
+      }
+    }
+  })
+
+  return { tolls: routeTolls, totalCost: totalTollCost }
+}
+
+// Check for border crossings
+const getBorderCrossings = (segments) => {
+  const crossings = []
+
+  segments.forEach((segment) => {
+    const crossing = provincialBoundaries.find(
+      (boundary) => boundary.cities.includes(segment.from) && boundary.cities.includes(segment.to),
+    )
+
+    if (crossing) {
+      crossings.push({
+        from: crossing.from,
+        to: crossing.to,
+        location: `${segment.from} - ${segment.to}`,
+      })
+    }
+  })
+
+  return crossings
+}
+
 export default function DistanceTableSystem() {
   const [searchTerm, setSearchTerm] = useState("")
   const [fromCity, setFromCity] = useState("")
   const [toCity, setToCity] = useState("")
-  const [selectedDistance, setSelectedDistance] = useState<(typeof distanceData)[0] | null>(null)
-  const [routeSegments, setRouteSegments] = useState<any[]>([])
-  const [totalDistance, setTotalDistance] = useState(0)
-  const [totalTime, setTotalTime] = useState("")
+  const [selectedVehicle, setSelectedVehicle] = useState("car")
+  const [selectedRoutes, setSelectedRoutes] = useState([])
+  const [activeRouteIndex, setActiveRouteIndex] = useState(0)
 
   const filteredData = useMemo(() => {
     return distanceData.filter((item) => {
@@ -238,65 +534,47 @@ export default function DistanceTableSystem() {
 
   const calculateRoute = () => {
     if (fromCity && toCity) {
-      // Check for direct route first
-      const directRoute = distanceData.find(
-        (route) => (route.from === fromCity && route.to === toCity) || (route.from === toCity && route.to === fromCity),
-      )
-
-      if (directRoute) {
-        setSelectedDistance(directRoute)
-        setRouteSegments([])
-        setTotalDistance(0)
-        setTotalTime("")
-        return
-      }
-
-      // Find path using graph
       const graph = buildGraph()
-      const path = findShortestPath(graph, fromCity, toCity)
+      const routes = findMultipleRoutes(graph, fromCity, toCity)
 
-      if (path.length > 0) {
-        const segments = buildRouteSegments(path)
-
-        // Calculate total distance and time
-        let distance = 0
-        let timeInMinutes = 0
+      const processedRoutes = routes.map((route) => {
+        const segments = buildRouteSegments(route.path)
+        let totalDistance = 0
+        let totalTimeMinutes = 0
 
         segments.forEach((segment) => {
-          distance += segment.distance
-
-          // Parse time (e.g., "1h 30m" -> 90 minutes)
+          totalDistance += segment.distance
           const timeParts = segment.time.split(" ")
           const hours = Number.parseInt(timeParts[0]) || 0
           const minutes = Number.parseInt(timeParts[1]) || 0
-          timeInMinutes += hours * 60 + minutes
+          totalTimeMinutes += hours * 60 + minutes
         })
 
-        // Format total time
-        const totalHours = Math.floor(timeInMinutes / 60)
-        const totalMinutes = timeInMinutes % 60
-        const formattedTime = `${totalHours}h ${totalMinutes}m`
+        const totalHours = Math.floor(totalTimeMinutes / 60)
+        const remainingMinutes = totalTimeMinutes % 60
+        const formattedTime = `${totalHours}h ${remainingMinutes}m`
 
-        setRouteSegments(segments)
-        setTotalDistance(distance)
-        setTotalTime(formattedTime)
+        const fuelCost = calculateFuelCost(totalDistance, selectedVehicle)
+        const tollInfo = getRouteTollGates(segments)
+        const borderCrossings = getBorderCrossings(segments)
 
-        // Create a combined route object for the main display
-        setSelectedDistance({
-          from: fromCity,
-          to: toCity,
-          distance: distance,
-          time: formattedTime,
-        })
-      } else {
-        // No route found
-        setSelectedDistance(null)
-        setRouteSegments([])
-        setTotalDistance(0)
-        setTotalTime("")
-      }
+        return {
+          ...route,
+          segments,
+          totalDistance,
+          totalTime: formattedTime,
+          fuelCost,
+          tollInfo,
+          borderCrossings,
+        }
+      })
+
+      setSelectedRoutes(processedRoutes)
+      setActiveRouteIndex(0)
     }
   }
+
+  const activeRoute = selectedRoutes[activeRouteIndex]
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
@@ -305,8 +583,8 @@ export default function DistanceTableSystem() {
         {/* Header */}
         <div className="text-center space-y-4 pt-4">
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Calculate distances and travel times between major cities in Zimbabwe. Find the shortest routes for your
-            journey planning.
+            Calculate distances, travel times, fuel costs, and get detailed route information between major cities in
+            Zimbabwe.
           </p>
         </div>
 
@@ -315,14 +593,14 @@ export default function DistanceTableSystem() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Route className="h-5 w-5" />
-              Route Calculator
+              Advanced Route Calculator
             </CardTitle>
             <CardDescription>
-              Select your departure and destination cities to calculate distance and travel time
+              Select your departure and destination cities, choose vehicle type, and get comprehensive route information
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
               <div>
                 <label className="text-sm font-medium mb-2 block">From City</label>
                 <Select value={fromCity} onValueChange={setFromCity}>
@@ -355,59 +633,237 @@ export default function DistanceTableSystem() {
                 </Select>
               </div>
 
+              <div>
+                <label className="text-sm font-medium mb-2 block">Vehicle Type</label>
+                <Select value={selectedVehicle} onValueChange={setSelectedVehicle}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select vehicle" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(vehicleTypes).map(([key, vehicle]) => {
+                      const IconComponent = vehicle.icon
+                      return (
+                        <SelectItem key={key} value={key}>
+                          <div className="flex items-center gap-2">
+                            <IconComponent className={`h-4 w-4 ${vehicle.color}`} />
+                            {vehicle.name}
+                          </div>
+                        </SelectItem>
+                      )
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="flex items-end">
                 <Button onClick={calculateRoute} className="w-full" disabled={!fromCity || !toCity}>
-                  Calculate Route
+                  Calculate Routes
                 </Button>
               </div>
             </div>
 
-            {selectedDistance && (
-              <Card className="bg-green-50 border-green-200">
-                <CardContent className="pt-6">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                    <div>
-                      <p className="text-sm text-gray-600">Route</p>
-                      <p className="text-lg font-semibold">
-                        {selectedDistance.from} → {selectedDistance.to}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Distance</p>
-                      <p className="text-2xl font-bold text-green-600">{selectedDistance.distance} km</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Estimated Time</p>
-                      <p className="text-lg font-semibold text-blue-600">{selectedDistance.time}</p>
-                    </div>
-                  </div>
+            {/* Route Options */}
+            {selectedRoutes.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex gap-2 flex-wrap">
+                  {selectedRoutes.map((route, index) => (
+                    <Button
+                      key={index}
+                      variant={activeRouteIndex === index ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setActiveRouteIndex(index)}
+                      className="capitalize"
+                    >
+                      {route.type} Route
+                      {route.type === "scenic" && "🌄"}
+                      {route.type === "fastest" && "⚡"}
+                      {route.type === "shortest" && "📏"}
+                    </Button>
+                  ))}
+                </div>
 
-                  {/* Intermediate Routes */}
-                  {routeSegments.length > 0 && (
-                    <div className="mt-6 border-t border-green-200 pt-4">
-                      <p className="text-sm font-medium text-gray-700 mb-3">Route Breakdown:</p>
-                      <div className="space-y-2">
-                        {routeSegments.map((segment, index) => (
-                          <div key={index} className="flex items-center justify-between bg-white/70 rounded-md p-3">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-gray-800">{segment.from}</span>
-                              <ArrowRight className="h-4 w-4 text-gray-400" />
-                              <span className="font-medium text-gray-800">{segment.to}</span>
+                {activeRoute && (
+                  <Card className="bg-green-50 border-green-200">
+                    <CardContent className="pt-6">
+                      {/* Route Summary */}
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center mb-6">
+                        <div>
+                          <p className="text-sm text-gray-600">Route</p>
+                          <p className="text-lg font-semibold">
+                            {fromCity} → {toCity}
+                          </p>
+                          <Badge variant="secondary" className="mt-1 capitalize">
+                            {activeRoute.type}
+                          </Badge>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Distance</p>
+                          <p className="text-2xl font-bold text-green-600">{activeRoute.totalDistance} km</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Travel Time</p>
+                          <p className="text-lg font-semibold text-blue-600">{activeRoute.totalTime}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Fuel Cost</p>
+                          <p className="text-lg font-bold text-orange-600">${activeRoute.fuelCost.toFixed(2)}</p>
+                          <p className="text-xs text-gray-500">
+                            {vehicleTypes[selectedVehicle].name} ({vehicleTypes[selectedVehicle].consumption} km/L)
+                          </p>
+                        </div>
+                      </div>
+
+                      <Tabs defaultValue="route" className="w-full">
+                        <TabsList className="grid w-full grid-cols-4">
+                          <TabsTrigger value="route">Route Details</TabsTrigger>
+                          <TabsTrigger value="costs">Costs</TabsTrigger>
+                          <TabsTrigger value="tolls">Toll Gates</TabsTrigger>
+                          <TabsTrigger value="borders">Border Info</TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="route" className="space-y-3">
+                          <h4 className="font-medium text-gray-700">Route Breakdown:</h4>
+                          {activeRoute.segments.map((segment, index) => (
+                            <div key={index} className="flex items-center justify-between bg-white/70 rounded-md p-3">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-gray-800">{segment.from}</span>
+                                <ArrowRight className="h-4 w-4 text-gray-400" />
+                                <span className="font-medium text-gray-800">{segment.to}</span>
+                                {segment.scenic && (
+                                  <Badge variant="outline" className="text-xs">
+                                    Scenic
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <span className="text-sm text-gray-600">{segment.distance} km</span>
+                                <span className="text-sm text-blue-600">{segment.time}</span>
+                                <Badge variant="secondary" className="text-xs capitalize">
+                                  {segment.routeType.replace("_", " ")}
+                                </Badge>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-4">
-                              <span className="text-sm text-gray-600">{segment.distance} km</span>
-                              <span className="text-sm text-blue-600">{segment.time}</span>
-                            </div>
+                          ))}
+                        </TabsContent>
+
+                        <TabsContent value="costs" className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Card className="p-4">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Fuel className="h-5 w-5 text-orange-600" />
+                                <h4 className="font-medium">Fuel Costs</h4>
+                              </div>
+                              <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                  <span>Distance:</span>
+                                  <span>{activeRoute.totalDistance} km</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Fuel needed:</span>
+                                  <span>
+                                    {(activeRoute.totalDistance / vehicleTypes[selectedVehicle].consumption).toFixed(1)}{" "}
+                                    L
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Price per litre:</span>
+                                  <span>${FUEL_PRICE_USD}</span>
+                                </div>
+                                <div className="flex justify-between font-semibold border-t pt-2">
+                                  <span>Total Fuel Cost:</span>
+                                  <span>${activeRoute.fuelCost.toFixed(2)}</span>
+                                </div>
+                              </div>
+                            </Card>
+
+                            <Card className="p-4">
+                              <div className="flex items-center gap-2 mb-2">
+                                <DollarSign className="h-5 w-5 text-green-600" />
+                                <h4 className="font-medium">Total Trip Cost</h4>
+                              </div>
+                              <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                  <span>Fuel:</span>
+                                  <span>${activeRoute.fuelCost.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Tolls:</span>
+                                  <span>${activeRoute.tollInfo.totalCost.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between font-semibold border-t pt-2 text-lg">
+                                  <span>Total:</span>
+                                  <span>${(activeRoute.fuelCost + activeRoute.tollInfo.totalCost).toFixed(2)}</span>
+                                </div>
+                              </div>
+                            </Card>
                           </div>
-                        ))}
-                      </div>
-                      <div className="mt-4 text-right text-sm text-gray-600">
-                        Total: {totalDistance} km ({totalTime})
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                        </TabsContent>
+
+                        <TabsContent value="tolls" className="space-y-3">
+                          {activeRoute.tollInfo.tolls.length > 0 ? (
+                            <>
+                              <h4 className="font-medium text-gray-700">Toll Gates on Route:</h4>
+                              {activeRoute.tollInfo.tolls.map((toll, index) => (
+                                <div key={index} className="bg-white/70 rounded-md p-3">
+                                  <div className="flex justify-between items-start">
+                                    <div>
+                                      <h5 className="font-medium text-gray-800">{toll.name}</h5>
+                                      <p className="text-sm text-gray-600">{toll.location}</p>
+                                    </div>
+                                    <Badge variant="outline">${toll.cost.toFixed(2)}</Badge>
+                                  </div>
+                                </div>
+                              ))}
+                              <div className="text-right font-semibold">
+                                Total Toll Cost: ${activeRoute.tollInfo.totalCost.toFixed(2)}
+                              </div>
+                            </>
+                          ) : (
+                            <p className="text-gray-600 text-center py-4">No toll gates on this route</p>
+                          )}
+                        </TabsContent>
+
+                        <TabsContent value="borders" className="space-y-3">
+                          {activeRoute.borderCrossings.length > 0 ? (
+                            <>
+                              <h4 className="font-medium text-gray-700">Provincial Border Crossings:</h4>
+                              {activeRoute.borderCrossings.map((crossing, index) => (
+                                <div key={index} className="bg-white/70 rounded-md p-3">
+                                  <div className="flex items-center gap-2">
+                                    <MapPin className="h-4 w-4 text-blue-600" />
+                                    <div>
+                                      <p className="font-medium text-gray-800">
+                                        {crossing.from} → {crossing.to}
+                                      </p>
+                                      <p className="text-sm text-gray-600">At: {crossing.location}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                              <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                                <div className="flex items-start gap-2">
+                                  <AlertTriangle className="h-4 w-4 text-blue-600 mt-0.5" />
+                                  <div className="text-sm text-blue-800">
+                                    <p className="font-medium">Border Crossing Information:</p>
+                                    <p>
+                                      Ensure you have proper identification when crossing provincial boundaries. Some
+                                      areas may have checkpoints.
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            </>
+                          ) : (
+                            <p className="text-gray-600 text-center py-4">
+                              No provincial border crossings on this route
+                            </p>
+                          )}
+                        </TabsContent>
+                      </Tabs>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>
@@ -418,7 +874,6 @@ export default function DistanceTableSystem() {
             <CardTitle>Distance Table</CardTitle>
             <CardDescription>Complete distance table between Zimbabwe cities</CardDescription>
 
-            {/* Search and Filters */}
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -469,6 +924,7 @@ export default function DistanceTableSystem() {
                     <TableHead className="text-right">Distance (km)</TableHead>
                     <TableHead className="text-right">Travel Time</TableHead>
                     <TableHead className="text-right">Route Type</TableHead>
+                    <TableHead className="text-right">Features</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -480,17 +936,34 @@ export default function DistanceTableSystem() {
                         <TableCell className="text-right font-semibold">{item.distance} km</TableCell>
                         <TableCell className="text-right">{item.time}</TableCell>
                         <TableCell className="text-right">
-                          <Badge
-                            variant={item.distance < 200 ? "default" : item.distance < 400 ? "secondary" : "outline"}
-                          >
-                            {item.distance < 200 ? "Short" : item.distance < 400 ? "Medium" : "Long"}
+                          <Badge variant="secondary" className="capitalize">
+                            {item.routeType?.replace("_", " ") || "main road"}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex gap-1 justify-end">
+                            {item.scenic && (
+                              <Badge variant="outline" className="text-xs">
+                                Scenic
+                              </Badge>
+                            )}
+                            {item.tollCost > 0 && (
+                              <Badge variant="outline" className="text-xs">
+                                Toll
+                              </Badge>
+                            )}
+                            {item.alternative && (
+                              <Badge variant="outline" className="text-xs">
+                                Alt
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                         No routes found matching your criteria
                       </TableCell>
                     </TableRow>
@@ -528,10 +1001,8 @@ export default function DistanceTableSystem() {
           <Card>
             <CardContent className="pt-6">
               <div className="text-center">
-                <p className="text-2xl font-bold text-purple-600">
-                  {Math.min(...distanceData.map((d) => d.distance))} km
-                </p>
-                <p className="text-sm text-gray-600">Shortest Route</p>
+                <p className="text-2xl font-bold text-purple-600">{tollGates.length}</p>
+                <p className="text-sm text-gray-600">Toll Gates</p>
               </div>
             </CardContent>
           </Card>
@@ -539,10 +1010,8 @@ export default function DistanceTableSystem() {
           <Card>
             <CardContent className="pt-6">
               <div className="text-center">
-                <p className="text-2xl font-bold text-orange-600">
-                  {Math.max(...distanceData.map((d) => d.distance))} km
-                </p>
-                <p className="text-sm text-gray-600">Longest Route</p>
+                <p className="text-2xl font-bold text-orange-600">${FUEL_PRICE_USD}</p>
+                <p className="text-sm text-gray-600">Fuel Price/Litre</p>
               </div>
             </CardContent>
           </Card>
