@@ -13,15 +13,15 @@ import { Navigation } from "@/components/navigation"
 
 // Vehicle types with fuel consumption (km per litre)
 const vehicleTypes = {
-  car: { name: "Car", icon: Car, consumption: 12, color: "text-blue-600" }, // 12 km/L
-  motorcycle: { name: "Motorcycle", icon: Bike, consumption: 25, color: "text-green-600" }, // 25 km/L
-  bus: { name: "Bus", icon: Bus, consumption: 4, color: "text-orange-600" }, // 4 km/L
-  truck: { name: "Truck", icon: Truck, consumption: 3, color: "text-red-600" }, // 3 km/L
-  custom: { name: "Custom (60km/60L)", icon: Fuel, consumption: 1, color: "text-purple-600" }, // 1 km/L as specified
+  car: { name: "Car", icon: Car, consumption: 12, color: "text-blue-600 dark:text-blue-400" },
+  motorcycle: { name: "Motorcycle", icon: Bike, consumption: 25, color: "text-green-600 dark:text-green-400" },
+  bus: { name: "Bus", icon: Bus, consumption: 4, color: "text-orange-600 dark:text-orange-400" },
+  truck: { name: "Truck", icon: Truck, consumption: 3, color: "text-red-600 dark:text-red-400" },
+  custom: { name: "Custom (60km/60L)", icon: Fuel, consumption: 1, color: "text-purple-600 dark:text-purple-400" },
 }
 
-// Current fuel price in USD (you can update this)
-const FUEL_PRICE_USD = 1.45 // per litre
+// Current fuel price in USD
+const FUEL_PRICE_USD = 1.45
 
 // Toll gates information
 const tollGates = [
@@ -577,12 +577,12 @@ export default function DistanceTableSystem() {
   const activeRoute = selectedRoutes[activeRouteIndex]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-2 sm:p-4">
       <Navigation />
-      <div className="max-w-7xl mx-auto space-y-6">
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="text-center space-y-4 pt-4">
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+        <div className="text-center space-y-2 sm:space-y-4 pt-2 sm:pt-4">
+          <p className="text-sm sm:text-lg text-muted-foreground max-w-2xl mx-auto px-4">
             Calculate distances, travel times, fuel costs, and get detailed route information between major cities in
             Zimbabwe.
           </p>
@@ -590,21 +590,21 @@ export default function DistanceTableSystem() {
 
         {/* Route Calculator */}
         <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Route className="h-5 w-5" />
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+              <Route className="h-4 w-4 sm:h-5 sm:w-5" />
               Advanced Route Calculator
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-sm">
               Select your departure and destination cities, choose vehicle type, and get comprehensive route information
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
               <div>
                 <label className="text-sm font-medium mb-2 block">From City</label>
                 <Select value={fromCity} onValueChange={setFromCity}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-10">
                     <SelectValue placeholder="Select departure city" />
                   </SelectTrigger>
                   <SelectContent>
@@ -620,7 +620,7 @@ export default function DistanceTableSystem() {
               <div>
                 <label className="text-sm font-medium mb-2 block">To City</label>
                 <Select value={toCity} onValueChange={setToCity}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-10">
                     <SelectValue placeholder="Select destination city" />
                   </SelectTrigger>
                   <SelectContent>
@@ -636,7 +636,7 @@ export default function DistanceTableSystem() {
               <div>
                 <label className="text-sm font-medium mb-2 block">Vehicle Type</label>
                 <Select value={selectedVehicle} onValueChange={setSelectedVehicle}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-10">
                     <SelectValue placeholder="Select vehicle" />
                   </SelectTrigger>
                   <SelectContent>
@@ -646,7 +646,8 @@ export default function DistanceTableSystem() {
                         <SelectItem key={key} value={key}>
                           <div className="flex items-center gap-2">
                             <IconComponent className={`h-4 w-4 ${vehicle.color}`} />
-                            {vehicle.name}
+                            <span className="hidden sm:inline">{vehicle.name}</span>
+                            <span className="sm:hidden">{vehicle.name.split(" ")[0]}</span>
                           </div>
                         </SelectItem>
                       )
@@ -656,8 +657,9 @@ export default function DistanceTableSystem() {
               </div>
 
               <div className="flex items-end">
-                <Button onClick={calculateRoute} className="w-full" disabled={!fromCity || !toCity}>
-                  Calculate Routes
+                <Button onClick={calculateRoute} className="w-full h-10" disabled={!fromCity || !toCity}>
+                  <span className="hidden sm:inline">Calculate Routes</span>
+                  <span className="sm:hidden">Calculate</span>
                 </Button>
               </div>
             </div>
@@ -672,72 +674,91 @@ export default function DistanceTableSystem() {
                       variant={activeRouteIndex === index ? "default" : "outline"}
                       size="sm"
                       onClick={() => setActiveRouteIndex(index)}
-                      className="capitalize"
+                      className="capitalize text-xs sm:text-sm"
                     >
-                      {route.type} Route
-                      {route.type === "scenic" && "🌄"}
-                      {route.type === "fastest" && "⚡"}
-                      {route.type === "shortest" && "📏"}
+                      <span className="hidden sm:inline">{route.type} Route</span>
+                      <span className="sm:hidden">{route.type}</span>
+                      {route.type === "scenic" && " 🌄"}
+                      {route.type === "fastest" && " ⚡"}
+                      {route.type === "shortest" && " 📏"}
                     </Button>
                   ))}
                 </div>
 
                 {activeRoute && (
-                  <Card className="bg-green-50 border-green-200">
-                    <CardContent className="pt-6">
+                  <Card className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
+                    <CardContent className="pt-4 sm:pt-6">
                       {/* Route Summary */}
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center mb-6">
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 text-center mb-4 sm:mb-6">
                         <div>
-                          <p className="text-sm text-gray-600">Route</p>
-                          <p className="text-lg font-semibold">
+                          <p className="text-xs sm:text-sm text-muted-foreground">Route</p>
+                          <p className="text-sm sm:text-lg font-semibold">
                             {fromCity} → {toCity}
                           </p>
-                          <Badge variant="secondary" className="mt-1 capitalize">
+                          <Badge variant="secondary" className="mt-1 capitalize text-xs">
                             {activeRoute.type}
                           </Badge>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600">Distance</p>
-                          <p className="text-2xl font-bold text-green-600">{activeRoute.totalDistance} km</p>
+                          <p className="text-xs sm:text-sm text-muted-foreground">Distance</p>
+                          <p className="text-lg sm:text-2xl font-bold text-green-600 dark:text-green-400">
+                            {activeRoute.totalDistance} km
+                          </p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600">Travel Time</p>
-                          <p className="text-lg font-semibold text-blue-600">{activeRoute.totalTime}</p>
+                          <p className="text-xs sm:text-sm text-muted-foreground">Travel Time</p>
+                          <p className="text-sm sm:text-lg font-semibold text-blue-600 dark:text-blue-400">
+                            {activeRoute.totalTime}
+                          </p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600">Fuel Cost</p>
-                          <p className="text-lg font-bold text-orange-600">${activeRoute.fuelCost.toFixed(2)}</p>
-                          <p className="text-xs text-gray-500">
-                            {vehicleTypes[selectedVehicle].name} ({vehicleTypes[selectedVehicle].consumption} km/L)
+                          <p className="text-xs sm:text-sm text-muted-foreground">Fuel Cost</p>
+                          <p className="text-sm sm:text-lg font-bold text-orange-600 dark:text-orange-400">
+                            ${activeRoute.fuelCost.toFixed(2)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {vehicleTypes[selectedVehicle].name.split(" ")[0]} (
+                            {vehicleTypes[selectedVehicle].consumption} km/L)
                           </p>
                         </div>
                       </div>
 
                       <Tabs defaultValue="route" className="w-full">
-                        <TabsList className="grid w-full grid-cols-4">
-                          <TabsTrigger value="route">Route Details</TabsTrigger>
-                          <TabsTrigger value="costs">Costs</TabsTrigger>
-                          <TabsTrigger value="tolls">Toll Gates</TabsTrigger>
-                          <TabsTrigger value="borders">Border Info</TabsTrigger>
+                        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 h-auto">
+                          <TabsTrigger value="route" className="text-xs sm:text-sm">
+                            Route Details
+                          </TabsTrigger>
+                          <TabsTrigger value="costs" className="text-xs sm:text-sm">
+                            Costs
+                          </TabsTrigger>
+                          <TabsTrigger value="tolls" className="text-xs sm:text-sm">
+                            Toll Gates
+                          </TabsTrigger>
+                          <TabsTrigger value="borders" className="text-xs sm:text-sm">
+                            Border Info
+                          </TabsTrigger>
                         </TabsList>
 
-                        <TabsContent value="route" className="space-y-3">
-                          <h4 className="font-medium text-gray-700">Route Breakdown:</h4>
+                        <TabsContent value="route" className="space-y-3 mt-4">
+                          <h4 className="font-medium text-sm sm:text-base">Route Breakdown:</h4>
                           {activeRoute.segments.map((segment, index) => (
-                            <div key={index} className="flex items-center justify-between bg-white/70 rounded-md p-3">
+                            <div
+                              key={index}
+                              className="flex flex-col sm:flex-row sm:items-center justify-between bg-background/70 rounded-md p-3 gap-2"
+                            >
                               <div className="flex items-center gap-2">
-                                <span className="font-medium text-gray-800">{segment.from}</span>
-                                <ArrowRight className="h-4 w-4 text-gray-400" />
-                                <span className="font-medium text-gray-800">{segment.to}</span>
+                                <span className="font-medium text-sm">{segment.from}</span>
+                                <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+                                <span className="font-medium text-sm">{segment.to}</span>
                                 {segment.scenic && (
                                   <Badge variant="outline" className="text-xs">
                                     Scenic
                                   </Badge>
                                 )}
                               </div>
-                              <div className="flex items-center gap-4">
-                                <span className="text-sm text-gray-600">{segment.distance} km</span>
-                                <span className="text-sm text-blue-600">{segment.time}</span>
+                              <div className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm">
+                                <span className="text-muted-foreground">{segment.distance} km</span>
+                                <span className="text-blue-600 dark:text-blue-400">{segment.time}</span>
                                 <Badge variant="secondary" className="text-xs capitalize">
                                   {segment.routeType.replace("_", " ")}
                                 </Badge>
@@ -746,14 +767,14 @@ export default function DistanceTableSystem() {
                           ))}
                         </TabsContent>
 
-                        <TabsContent value="costs" className="space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <Card className="p-4">
+                        <TabsContent value="costs" className="space-y-4 mt-4">
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <Card className="p-3 sm:p-4">
                               <div className="flex items-center gap-2 mb-2">
-                                <Fuel className="h-5 w-5 text-orange-600" />
-                                <h4 className="font-medium">Fuel Costs</h4>
+                                <Fuel className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600 dark:text-orange-400" />
+                                <h4 className="font-medium text-sm sm:text-base">Fuel Costs</h4>
                               </div>
-                              <div className="space-y-2 text-sm">
+                              <div className="space-y-2 text-xs sm:text-sm">
                                 <div className="flex justify-between">
                                   <span>Distance:</span>
                                   <span>{activeRoute.totalDistance} km</span>
@@ -776,12 +797,12 @@ export default function DistanceTableSystem() {
                               </div>
                             </Card>
 
-                            <Card className="p-4">
+                            <Card className="p-3 sm:p-4">
                               <div className="flex items-center gap-2 mb-2">
-                                <DollarSign className="h-5 w-5 text-green-600" />
-                                <h4 className="font-medium">Total Trip Cost</h4>
+                                <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 dark:text-green-400" />
+                                <h4 className="font-medium text-sm sm:text-base">Total Trip Cost</h4>
                               </div>
-                              <div className="space-y-2 text-sm">
+                              <div className="space-y-2 text-xs sm:text-sm">
                                 <div className="flex justify-between">
                                   <span>Fuel:</span>
                                   <span>${activeRoute.fuelCost.toFixed(2)}</span>
@@ -790,7 +811,7 @@ export default function DistanceTableSystem() {
                                   <span>Tolls:</span>
                                   <span>${activeRoute.tollInfo.totalCost.toFixed(2)}</span>
                                 </div>
-                                <div className="flex justify-between font-semibold border-t pt-2 text-lg">
+                                <div className="flex justify-between font-semibold border-t pt-2 text-sm sm:text-lg">
                                   <span>Total:</span>
                                   <span>${(activeRoute.fuelCost + activeRoute.tollInfo.totalCost).toFixed(2)}</span>
                                 </div>
@@ -799,51 +820,55 @@ export default function DistanceTableSystem() {
                           </div>
                         </TabsContent>
 
-                        <TabsContent value="tolls" className="space-y-3">
+                        <TabsContent value="tolls" className="space-y-3 mt-4">
                           {activeRoute.tollInfo.tolls.length > 0 ? (
                             <>
-                              <h4 className="font-medium text-gray-700">Toll Gates on Route:</h4>
+                              <h4 className="font-medium text-sm sm:text-base">Toll Gates on Route:</h4>
                               {activeRoute.tollInfo.tolls.map((toll, index) => (
-                                <div key={index} className="bg-white/70 rounded-md p-3">
-                                  <div className="flex justify-between items-start">
+                                <div key={index} className="bg-background/70 rounded-md p-3">
+                                  <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
                                     <div>
-                                      <h5 className="font-medium text-gray-800">{toll.name}</h5>
-                                      <p className="text-sm text-gray-600">{toll.location}</p>
+                                      <h5 className="font-medium text-sm">{toll.name}</h5>
+                                      <p className="text-xs text-muted-foreground">{toll.location}</p>
                                     </div>
-                                    <Badge variant="outline">${toll.cost.toFixed(2)}</Badge>
+                                    <Badge variant="outline" className="text-xs">
+                                      ${toll.cost.toFixed(2)}
+                                    </Badge>
                                   </div>
                                 </div>
                               ))}
-                              <div className="text-right font-semibold">
+                              <div className="text-right font-semibold text-sm">
                                 Total Toll Cost: ${activeRoute.tollInfo.totalCost.toFixed(2)}
                               </div>
                             </>
                           ) : (
-                            <p className="text-gray-600 text-center py-4">No toll gates on this route</p>
+                            <p className="text-muted-foreground text-center py-4 text-sm">
+                              No toll gates on this route
+                            </p>
                           )}
                         </TabsContent>
 
-                        <TabsContent value="borders" className="space-y-3">
+                        <TabsContent value="borders" className="space-y-3 mt-4">
                           {activeRoute.borderCrossings.length > 0 ? (
                             <>
-                              <h4 className="font-medium text-gray-700">Provincial Border Crossings:</h4>
+                              <h4 className="font-medium text-sm sm:text-base">Provincial Border Crossings:</h4>
                               {activeRoute.borderCrossings.map((crossing, index) => (
-                                <div key={index} className="bg-white/70 rounded-md p-3">
+                                <div key={index} className="bg-background/70 rounded-md p-3">
                                   <div className="flex items-center gap-2">
-                                    <MapPin className="h-4 w-4 text-blue-600" />
+                                    <MapPin className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600 dark:text-blue-400" />
                                     <div>
-                                      <p className="font-medium text-gray-800">
+                                      <p className="font-medium text-sm">
                                         {crossing.from} → {crossing.to}
                                       </p>
-                                      <p className="text-sm text-gray-600">At: {crossing.location}</p>
+                                      <p className="text-xs text-muted-foreground">At: {crossing.location}</p>
                                     </div>
                                   </div>
                                 </div>
                               ))}
-                              <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                              <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-md p-3">
                                 <div className="flex items-start gap-2">
-                                  <AlertTriangle className="h-4 w-4 text-blue-600 mt-0.5" />
-                                  <div className="text-sm text-blue-800">
+                                  <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600 dark:text-blue-400 mt-0.5" />
+                                  <div className="text-xs sm:text-sm text-blue-800 dark:text-blue-200">
                                     <p className="font-medium">Border Crossing Information:</p>
                                     <p>
                                       Ensure you have proper identification when crossing provincial boundaries. Some
@@ -854,7 +879,7 @@ export default function DistanceTableSystem() {
                               </div>
                             </>
                           ) : (
-                            <p className="text-gray-600 text-center py-4">
+                            <p className="text-muted-foreground text-center py-4 text-sm">
                               No provincial border crossings on this route
                             </p>
                           )}
@@ -870,23 +895,23 @@ export default function DistanceTableSystem() {
 
         {/* Distance Table */}
         <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle>Distance Table</CardTitle>
-            <CardDescription>Complete distance table between Zimbabwe cities</CardDescription>
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg sm:text-xl">Distance Table</CardTitle>
+            <CardDescription className="text-sm">Complete distance table between Zimbabwe cities</CardDescription>
 
-            <div className="flex flex-col sm:flex-row gap-4 pt-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search cities..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 h-10"
                 />
               </div>
 
               <Select value={fromCity} onValueChange={setFromCity}>
-                <SelectTrigger className="w-full sm:w-48">
+                <SelectTrigger className="w-full sm:w-48 h-10">
                   <SelectValue placeholder="Filter by city" />
                 </SelectTrigger>
                 <SelectContent>
@@ -907,41 +932,43 @@ export default function DistanceTableSystem() {
                     setFromCity("")
                     setToCity("")
                   }}
+                  className="h-10"
                 >
-                  Clear Filters
+                  <span className="hidden sm:inline">Clear Filters</span>
+                  <span className="sm:hidden">Clear</span>
                 </Button>
               )}
             </div>
           </CardHeader>
 
           <CardContent>
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>From</TableHead>
-                    <TableHead>To</TableHead>
-                    <TableHead className="text-right">Distance (km)</TableHead>
-                    <TableHead className="text-right">Travel Time</TableHead>
-                    <TableHead className="text-right">Route Type</TableHead>
-                    <TableHead className="text-right">Features</TableHead>
+                    <TableHead className="min-w-[100px]">From</TableHead>
+                    <TableHead className="min-w-[100px]">To</TableHead>
+                    <TableHead className="text-right min-w-[80px]">Distance</TableHead>
+                    <TableHead className="text-right min-w-[80px]">Time</TableHead>
+                    <TableHead className="text-right min-w-[100px]">Route Type</TableHead>
+                    <TableHead className="text-right min-w-[100px]">Features</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredData.length > 0 ? (
                     filteredData.map((item, index) => (
-                      <TableRow key={index} className="hover:bg-gray-50">
-                        <TableCell className="font-medium">{item.from}</TableCell>
-                        <TableCell>{item.to}</TableCell>
-                        <TableCell className="text-right font-semibold">{item.distance} km</TableCell>
-                        <TableCell className="text-right">{item.time}</TableCell>
+                      <TableRow key={index} className="hover:bg-muted/50">
+                        <TableCell className="font-medium text-sm">{item.from}</TableCell>
+                        <TableCell className="text-sm">{item.to}</TableCell>
+                        <TableCell className="text-right font-semibold text-sm">{item.distance} km</TableCell>
+                        <TableCell className="text-right text-sm">{item.time}</TableCell>
                         <TableCell className="text-right">
-                          <Badge variant="secondary" className="capitalize">
+                          <Badge variant="secondary" className="capitalize text-xs">
                             {item.routeType?.replace("_", " ") || "main road"}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex gap-1 justify-end">
+                          <div className="flex gap-1 justify-end flex-wrap">
                             {item.scenic && (
                               <Badge variant="outline" className="text-xs">
                                 Scenic
@@ -963,7 +990,7 @@ export default function DistanceTableSystem() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground text-sm">
                         No routes found matching your criteria
                       </TableCell>
                     </TableRow>
@@ -972,56 +999,58 @@ export default function DistanceTableSystem() {
               </Table>
             </div>
 
-            <div className="mt-4 text-sm text-gray-600">
+            <div className="mt-4 text-xs sm:text-sm text-muted-foreground">
               Showing {filteredData.length} of {distanceData.length} routes
             </div>
           </CardContent>
         </Card>
 
         {/* Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="pt-4 sm:pt-6">
               <div className="text-center">
-                <p className="text-2xl font-bold text-blue-600">{cities.length}</p>
-                <p className="text-sm text-gray-600">Cities Covered</p>
+                <p className="text-xl sm:text-2xl font-bold text-blue-600 dark:text-blue-400">{cities.length}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Cities Covered</p>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="pt-4 sm:pt-6">
               <div className="text-center">
-                <p className="text-2xl font-bold text-green-600">{distanceData.length}</p>
-                <p className="text-sm text-gray-600">Total Routes</p>
+                <p className="text-xl sm:text-2xl font-bold text-green-600 dark:text-green-400">
+                  {distanceData.length}
+                </p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Total Routes</p>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="pt-4 sm:pt-6">
               <div className="text-center">
-                <p className="text-2xl font-bold text-purple-600">{tollGates.length}</p>
-                <p className="text-sm text-gray-600">Toll Gates</p>
+                <p className="text-xl sm:text-2xl font-bold text-purple-600 dark:text-purple-400">{tollGates.length}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Toll Gates</p>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="pt-4 sm:pt-6">
               <div className="text-center">
-                <p className="text-2xl font-bold text-orange-600">${FUEL_PRICE_USD}</p>
-                <p className="text-sm text-gray-600">Fuel Price/Litre</p>
+                <p className="text-xl sm:text-2xl font-bold text-orange-600 dark:text-orange-400">${FUEL_PRICE_USD}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Fuel Price/Litre</p>
               </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Footer */}
-        <footer className="mt-12 py-8 border-t border-gray-200 bg-white/50 backdrop-blur-sm rounded-lg">
+        <footer className="mt-8 sm:mt-12 py-6 sm:py-8 border-t border-border bg-background/50 backdrop-blur-sm rounded-lg">
           <div className="text-center">
-            <p className="text-gray-600">
-              Copyright © 2025, developed by <span className="font-semibold text-gray-800">Onwell Masaraure</span>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Copyright © 2025, developed by <span className="font-semibold text-foreground">Onwell Masaraure</span>
             </p>
           </div>
         </footer>
