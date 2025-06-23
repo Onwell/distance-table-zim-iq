@@ -11,29 +11,348 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Navigation } from "@/components/navigation"
 
-// Vehicle types with fuel consumption (km per litre)
+// Updated toll fees by vehicle type
+const tollFees = {
+  motorcycle: 0.0,
+  car: 4.0,
+  minibus: 6.0,
+  bus: 8.0,
+  truck: 10.0,
+  haulage: 20.0,
+}
+
+// Vehicle types with fuel consumption (km per litre) and toll category
 const vehicleTypes = {
-  car: { name: "Car", icon: Car, consumption: 12, color: "text-blue-600 dark:text-blue-400" },
-  motorcycle: { name: "Motorcycle", icon: Bike, consumption: 25, color: "text-green-600 dark:text-green-400" },
-  bus: { name: "Bus", icon: Bus, consumption: 4, color: "text-orange-600 dark:text-orange-400" },
-  truck: { name: "Truck", icon: Truck, consumption: 3, color: "text-red-600 dark:text-red-400" },
-  custom: { name: "Custom (60km/60L)", icon: Fuel, consumption: 1, color: "text-purple-600 dark:text-purple-400" },
+  car: {
+    name: "Light Motor Vehicle",
+    icon: Car,
+    consumption: 12,
+    color: "text-blue-600 dark:text-blue-400",
+    tollCategory: "car",
+  },
+  motorcycle: {
+    name: "Motor Cycle",
+    icon: Bike,
+    consumption: 25,
+    color: "text-green-600 dark:text-green-400",
+    tollCategory: "motorcycle",
+  },
+  minibus: {
+    name: "MiniBus",
+    icon: Bus,
+    consumption: 8,
+    color: "text-purple-600 dark:text-purple-400",
+    tollCategory: "minibus",
+  },
+  bus: { name: "Bus", icon: Bus, consumption: 4, color: "text-orange-600 dark:text-orange-400", tollCategory: "bus" },
+  truck: {
+    name: "Heavy Vehicle",
+    icon: Truck,
+    consumption: 3,
+    color: "text-red-600 dark:text-red-400",
+    tollCategory: "truck",
+  },
+  haulage: {
+    name: "Haulage Truck",
+    icon: Truck,
+    consumption: 2.5,
+    color: "text-gray-600 dark:text-gray-400",
+    tollCategory: "haulage",
+  },
 }
 
 // Current fuel price in USD
 const FUEL_PRICE_USD = 1.45
 
-// Toll gates information
+// Comprehensive Zimbabwe toll gates with actual locations
+const zimbabweTollGates = [
+  // A1 Highway (Harare-Chirundu)
+  {
+    id: "makuti_toll",
+    name: "Makuti Toll Plaza",
+    location: "A1 Highway, Makuti",
+    highway: "A1",
+    coordinates: { lat: -16.0833, lng: 29.3833 },
+    kmFromHarare: 180,
+    serves: ["Harare-Chirundu", "Harare-Kariba"],
+  },
+
+  // A2 Highway (Harare-Nyamapanda)
+  {
+    id: "marondera_toll",
+    name: "Marondera Toll Plaza",
+    location: "A2 Highway, Marondera",
+    highway: "A2",
+    coordinates: { lat: -18.1833, lng: 31.55 },
+    kmFromHarare: 75,
+    serves: ["Harare-Nyamapanda", "Harare-Mutoko"],
+  },
+
+  // A3 Highway (Harare-Mutare)
+  {
+    id: "rusape_toll",
+    name: "Rusape Toll Plaza",
+    location: "A3 Highway, Rusape",
+    highway: "A3",
+    coordinates: { lat: -18.5276, lng: 32.1255 },
+    kmFromHarare: 170,
+    serves: ["Harare-Mutare", "Harare-Chipinge"],
+  },
+
+  // A4 Highway (Harare-Beitbridge)
+  {
+    id: "mvuma_toll",
+    name: "Mvuma Toll Plaza",
+    location: "A4 Highway, Mvuma",
+    highway: "A4",
+    coordinates: { lat: -19.2833, lng: 30.5333 },
+    kmFromHarare: 220,
+    serves: ["Harare-Masvingo", "Harare-Beitbridge"],
+  },
+  {
+    id: "masvingo_toll",
+    name: "Masvingo Toll Plaza",
+    location: "A4 Highway, Masvingo South",
+    highway: "A4",
+    coordinates: { lat: -20.0833, lng: 30.8333 },
+    kmFromHarare: 292,
+    serves: ["Masvingo-Beitbridge", "Masvingo-Triangle"],
+  },
+  {
+    id: "beitbridge_toll",
+    name: "Beitbridge Toll Plaza",
+    location: "A4 Highway, Beitbridge North",
+    highway: "A4",
+    coordinates: { lat: -22.2167, lng: 30.0 },
+    kmFromHarare: 572,
+    serves: ["Beitbridge Border", "South Africa Border"],
+  },
+
+  // A5 Highway (Harare-Bulawayo)
+  {
+    id: "chegutu_toll",
+    name: "Chegutu Toll Plaza",
+    location: "A5 Highway, Chegutu",
+    highway: "A5",
+    coordinates: { lat: -18.1348, lng: 30.1435 },
+    kmFromHarare: 110,
+    serves: ["Harare-Bulawayo", "Harare-Kadoma"],
+  },
+  {
+    id: "kwekwe_toll",
+    name: "Kwekwe Toll Plaza",
+    location: "A5 Highway, Kwekwe",
+    highway: "A5",
+    coordinates: { lat: -18.9167, lng: 29.8167 },
+    kmFromHarare: 207,
+    serves: ["Harare-Gweru", "Kwekwe-Redcliff"],
+  },
+  {
+    id: "gweru_toll",
+    name: "Gweru Toll Plaza",
+    location: "A5 Highway, Gweru East",
+    highway: "A5",
+    coordinates: { lat: -19.45, lng: 29.8167 },
+    kmFromHarare: 274,
+    serves: ["Gweru-Bulawayo", "Gweru-Shurugwi"],
+  },
+  {
+    id: "shangani_toll",
+    name: "Shangani Toll Plaza",
+    location: "A5 Highway, Shangani",
+    highway: "A5",
+    coordinates: { lat: -19.7833, lng: 29.3667 },
+    kmFromHarare: 350,
+    serves: ["Gweru-Bulawayo", "Shangani-Zvishavane"],
+  },
+
+  // A6 Highway (Bulawayo-Francistown)
+  {
+    id: "plumtree_toll",
+    name: "Plumtree Toll Plaza",
+    location: "A6 Highway, Plumtree",
+    highway: "A6",
+    coordinates: { lat: -20.4833, lng: 27.8167 },
+    kmFromBulawayo: 100,
+    serves: ["Bulawayo-Plumtree", "Botswana Border"],
+  },
+
+  // A7 Highway (Bulawayo-Beitbridge)
+  {
+    id: "gwanda_toll",
+    name: "Gwanda Toll Plaza",
+    location: "A7 Highway, Gwanda",
+    highway: "A7",
+    coordinates: { lat: -20.9333, lng: 29.0 },
+    kmFromBulawayo: 126,
+    serves: ["Bulawayo-Gwanda", "Gwanda-Beitbridge"],
+  },
+  {
+    id: "west_nicholson_toll",
+    name: "West Nicholson Toll Plaza",
+    location: "A7 Highway, West Nicholson",
+    highway: "A7",
+    coordinates: { lat: -21.6167, lng: 29.0333 },
+    kmFromBulawayo: 198,
+    serves: ["Gwanda-Beitbridge", "West Nicholson-Rutenga"],
+  },
+
+  // A8 Highway (Bulawayo-Victoria Falls)
+  {
+    id: "hwange_toll",
+    name: "Hwange Toll Plaza",
+    location: "A8 Highway, Hwange",
+    highway: "A8",
+    coordinates: { lat: -18.3667, lng: 26.5 },
+    kmFromBulawayo: 296,
+    serves: ["Bulawayo-Hwange", "Hwange-Victoria Falls"],
+  },
+  {
+    id: "victoria_falls_toll",
+    name: "Victoria Falls Toll Plaza",
+    location: "A8 Highway, Victoria Falls",
+    highway: "A8",
+    coordinates: { lat: -17.9333, lng: 25.8167 },
+    kmFromBulawayo: 440,
+    serves: ["Victoria Falls", "Zambia Border"],
+  },
+
+  // Additional Regional Toll Gates
+  {
+    id: "chinhoyi_toll",
+    name: "Chinhoyi Toll Plaza",
+    location: "Chinhoyi-Karoi Road",
+    highway: "Regional",
+    coordinates: { lat: -17.3667, lng: 30.2 },
+    kmFromHarare: 116,
+    serves: ["Harare-Chinhoyi", "Chinhoyi-Karoi"],
+  },
+  {
+    id: "mutoko_toll",
+    name: "Mutoko Toll Plaza",
+    location: "A2 Highway, Mutoko",
+    highway: "A2",
+    coordinates: { lat: -17.3967, lng: 32.2267 },
+    kmFromHarare: 143,
+    serves: ["Harare-Mutoko", "Mutoko-Nyamapanda"],
+  },
+  {
+    id: "chipinge_toll",
+    name: "Chipinge Toll Plaza",
+    location: "Chipinge-Triangle Road",
+    highway: "Regional",
+    coordinates: { lat: -20.1833, lng: 32.6167 },
+    kmFromMutare: 131,
+    serves: ["Mutare-Chipinge", "Chipinge-Triangle"],
+  },
+]
+
+// Function to find toll gates on a specific route segment
+const findTollGatesOnSegment = (fromCity, toCity, distance) => {
+  const routeTollGates = []
+
+  // Define route mappings to toll gates
+  const routeMappings = {
+    // A1 Routes
+    "Harare-Chirundu": ["makuti_toll"],
+    "Harare-Kariba": ["makuti_toll"],
+
+    // A2 Routes
+    "Harare-Mutoko": ["marondera_toll", "mutoko_toll"],
+    "Harare-Nyamapanda": ["marondera_toll", "mutoko_toll"],
+    "Marondera-Mutoko": ["mutoko_toll"],
+
+    // A3 Routes
+    "Harare-Mutare": ["rusape_toll"],
+    "Harare-Rusape": ["rusape_toll"],
+    "Mutare-Chipinge": ["chipinge_toll"],
+
+    // A4 Routes
+    "Harare-Masvingo": ["mvuma_toll"],
+    "Harare-Beitbridge": ["mvuma_toll", "masvingo_toll", "beitbridge_toll"],
+    "Masvingo-Beitbridge": ["masvingo_toll", "beitbridge_toll"],
+    "Masvingo-Triangle": ["masvingo_toll"],
+
+    // A5 Routes
+    "Harare-Chegutu": ["chegutu_toll"],
+    "Harare-Kadoma": ["chegutu_toll"],
+    "Harare-Kwekwe": ["chegutu_toll", "kwekwe_toll"],
+    "Harare-Gweru": ["chegutu_toll", "kwekwe_toll", "gweru_toll"],
+    "Harare-Bulawayo": ["chegutu_toll", "kwekwe_toll", "gweru_toll", "shangani_toll"],
+    "Gweru-Bulawayo": ["gweru_toll", "shangani_toll"],
+    "Kwekwe-Gweru": ["kwekwe_toll", "gweru_toll"],
+
+    // A6 Routes
+    "Bulawayo-Plumtree": ["plumtree_toll"],
+
+    // A7 Routes
+    "Bulawayo-Gwanda": ["gwanda_toll"],
+    "Bulawayo-Beitbridge": ["gwanda_toll", "west_nicholson_toll"],
+    "Gwanda-Beitbridge": ["west_nicholson_toll"],
+
+    // A8 Routes
+    "Bulawayo-Hwange": ["hwange_toll"],
+    "Bulawayo-Victoria Falls": ["hwange_toll", "victoria_falls_toll"],
+    "Hwange-Victoria Falls": ["victoria_falls_toll"],
+
+    // Regional Routes
+    "Harare-Chinhoyi": ["chinhoyi_toll"],
+  }
+
+  // Check both directions
+  const routeKey1 = `${fromCity}-${toCity}`
+  const routeKey2 = `${toCity}-${fromCity}`
+
+  const tollGateIds = routeMappings[routeKey1] || routeMappings[routeKey2] || []
+
+  // Get toll gate details
+  tollGateIds.forEach((tollId) => {
+    const tollGate = zimbabweTollGates.find((tg) => tg.id === tollId)
+    if (tollGate) {
+      routeTollGates.push(tollGate)
+    }
+  })
+
+  return routeTollGates
+}
+
+// Updated toll gates information with real Zimbabwe locations
 const tollGates = [
-  { name: "Harare-Bulawayo Toll", location: "A5 Highway", cost: 2.0, routes: ["Harare-Bulawayo", "Harare-Gweru"] },
-  { name: "Mutare Toll Plaza", location: "A3 Highway", cost: 1.5, routes: ["Harare-Mutare", "Marondera-Mutare"] },
+  {
+    name: "Harare-Bulawayo Toll",
+    location: "A5 Highway (Chegutu)",
+    routes: ["Harare-Bulawayo", "Harare-Gweru"],
+    kmFromHarare: 110,
+    coordinates: { lat: -18.1348, lng: 30.1435 },
+  },
+  {
+    name: "Mutare Toll Plaza",
+    location: "A3 Highway (Rusape)",
+    routes: ["Harare-Mutare", "Marondera-Mutare"],
+    kmFromHarare: 170,
+    coordinates: { lat: -18.5276, lng: 32.1255 },
+  },
   {
     name: "Beitbridge Toll",
-    location: "A4 Highway",
-    cost: 3.0,
+    location: "A4 Highway (Masvingo South)",
     routes: ["Masvingo-Beitbridge", "Bulawayo-Beitbridge"],
+    kmFromHarare: 350,
+    coordinates: { lat: -20.1833, lng: 30.6167 },
   },
-  { name: "Victoria Falls Toll", location: "A8 Highway", cost: 2.5, routes: ["Bulawayo-Victoria Falls"] },
+  {
+    name: "Victoria Falls Toll",
+    location: "A8 Highway (Hwange)",
+    routes: ["Bulawayo-Victoria Falls"],
+    kmFromHarare: 600,
+    coordinates: { lat: -18.1076, lng: 25.8563 },
+  },
+  {
+    name: "Gweru Toll Plaza",
+    location: "A5 Highway (Gweru East)",
+    routes: ["Harare-Gweru", "Gweru-Bulawayo"],
+    kmFromHarare: 274,
+    coordinates: { lat: -19.45, lng: 29.8167 },
+  },
 ]
 
 // Provincial boundaries
@@ -50,18 +369,82 @@ const provincialBoundaries = [
 // Expanded distance data with route types and toll information
 const distanceData = [
   // Major highways with route types
-  { from: "Harare", to: "Bulawayo", distance: 439, time: "4h 30m", routeType: "highway", scenic: false, tollCost: 2.0 },
-  { from: "Harare", to: "Mutare", distance: 263, time: "3h 15m", routeType: "highway", scenic: true, tollCost: 1.5 },
-  { from: "Harare", to: "Gweru", distance: 274, time: "3h 00m", routeType: "highway", scenic: false, tollCost: 2.0 },
-  { from: "Harare", to: "Masvingo", distance: 292, time: "3h 30m", routeType: "main_road", scenic: false, tollCost: 0 },
-  { from: "Harare", to: "Chinhoyi", distance: 116, time: "1h 30m", routeType: "main_road", scenic: false, tollCost: 0 },
-  { from: "Harare", to: "Kadoma", distance: 140, time: "1h 45m", routeType: "main_road", scenic: false, tollCost: 0 },
-  { from: "Harare", to: "Chegutu", distance: 110, time: "1h 20m", routeType: "main_road", scenic: false, tollCost: 0 },
-  { from: "Harare", to: "Bindura", distance: 88, time: "1h 10m", routeType: "secondary", scenic: false, tollCost: 0 },
-  { from: "Harare", to: "Marondera", distance: 75, time: "1h 00m", routeType: "main_road", scenic: false, tollCost: 0 },
-  { from: "Harare", to: "Chitungwiza", distance: 25, time: "0h 30m", routeType: "urban", scenic: false, tollCost: 0 },
-  { from: "Harare", to: "Norton", distance: 40, time: "0h 40m", routeType: "main_road", scenic: false, tollCost: 0 },
-  { from: "Harare", to: "Rusape", distance: 170, time: "2h 10m", routeType: "secondary", scenic: true, tollCost: 0 },
+  {
+    from: "Harare",
+    to: "Bulawayo",
+    distance: 439,
+    time: "4h 30m",
+    routeType: "highway",
+    scenic: false,
+    tollGates: ["Harare-Bulawayo Toll", "Gweru Toll Plaza"],
+  },
+  {
+    from: "Harare",
+    to: "Mutare",
+    distance: 263,
+    time: "3h 15m",
+    routeType: "highway",
+    scenic: true,
+    tollGates: ["Mutare Toll Plaza"],
+  },
+  {
+    from: "Harare",
+    to: "Gweru",
+    distance: 274,
+    time: "3h 00m",
+    routeType: "highway",
+    scenic: false,
+    tollGates: ["Harare-Bulawayo Toll", "Gweru Toll Plaza"],
+  },
+  {
+    from: "Harare",
+    to: "Masvingo",
+    distance: 292,
+    time: "3h 30m",
+    routeType: "main_road",
+    scenic: false,
+    tollGates: [],
+  },
+  {
+    from: "Harare",
+    to: "Chinhoyi",
+    distance: 116,
+    time: "1h 30m",
+    routeType: "main_road",
+    scenic: false,
+    tollGates: [],
+  },
+  { from: "Harare", to: "Kadoma", distance: 140, time: "1h 45m", routeType: "main_road", scenic: false, tollGates: [] },
+  {
+    from: "Harare",
+    to: "Chegutu",
+    distance: 110,
+    time: "1h 20m",
+    routeType: "main_road",
+    scenic: false,
+    tollGates: ["Harare-Bulawayo Toll"],
+  },
+  { from: "Harare", to: "Bindura", distance: 88, time: "1h 10m", routeType: "secondary", scenic: false, tollGates: [] },
+  {
+    from: "Harare",
+    to: "Marondera",
+    distance: 75,
+    time: "1h 00m",
+    routeType: "main_road",
+    scenic: false,
+    tollGates: [],
+  },
+  { from: "Harare", to: "Chitungwiza", distance: 25, time: "0h 30m", routeType: "urban", scenic: false, tollGates: [] },
+  { from: "Harare", to: "Norton", distance: 40, time: "0h 40m", routeType: "main_road", scenic: false, tollGates: [] },
+  {
+    from: "Harare",
+    to: "Rusape",
+    distance: 170,
+    time: "2h 10m",
+    routeType: "secondary",
+    scenic: true,
+    tollGates: ["Mutare Toll Plaza"],
+  },
 
   // Alternative routes (scenic/longer options)
   {
@@ -71,7 +454,7 @@ const distanceData = [
     time: "3h 45m",
     routeType: "scenic",
     scenic: true,
-    tollCost: 0,
+    tollGates: [],
     alternative: true,
   },
   {
@@ -81,13 +464,29 @@ const distanceData = [
     time: "5h 15m",
     routeType: "scenic",
     scenic: true,
-    tollCost: 0,
+    tollGates: [],
     alternative: true,
   },
 
   // Bulawayo connections
-  { from: "Bulawayo", to: "Mutare", distance: 518, time: "5h 45m", routeType: "main_road", scenic: false, tollCost: 0 },
-  { from: "Bulawayo", to: "Gweru", distance: 165, time: "2h 00m", routeType: "highway", scenic: false, tollCost: 0 },
+  {
+    from: "Bulawayo",
+    to: "Mutare",
+    distance: 518,
+    time: "5h 45m",
+    routeType: "main_road",
+    scenic: false,
+    tollGates: [],
+  },
+  {
+    from: "Bulawayo",
+    to: "Gweru",
+    distance: 165,
+    time: "2h 00m",
+    routeType: "highway",
+    scenic: false,
+    tollGates: ["Gweru Toll Plaza"],
+  },
   {
     from: "Bulawayo",
     to: "Masvingo",
@@ -95,7 +494,7 @@ const distanceData = [
     time: "3h 15m",
     routeType: "main_road",
     scenic: false,
-    tollCost: 0,
+    tollGates: [],
   },
   {
     from: "Bulawayo",
@@ -104,9 +503,17 @@ const distanceData = [
     time: "4h 30m",
     routeType: "highway",
     scenic: true,
-    tollCost: 2.5,
+    tollGates: ["Victoria Falls Toll"],
   },
-  { from: "Bulawayo", to: "Hwange", distance: 296, time: "3h 30m", routeType: "main_road", scenic: false, tollCost: 0 },
+  {
+    from: "Bulawayo",
+    to: "Hwange",
+    distance: 296,
+    time: "3h 30m",
+    routeType: "main_road",
+    scenic: false,
+    tollGates: [],
+  },
   {
     from: "Bulawayo",
     to: "Plumtree",
@@ -114,9 +521,17 @@ const distanceData = [
     time: "1h 20m",
     routeType: "main_road",
     scenic: false,
-    tollCost: 0,
+    tollGates: [],
   },
-  { from: "Bulawayo", to: "Gwanda", distance: 126, time: "1h 30m", routeType: "main_road", scenic: false, tollCost: 0 },
+  {
+    from: "Bulawayo",
+    to: "Gwanda",
+    distance: 126,
+    time: "1h 30m",
+    routeType: "main_road",
+    scenic: false,
+    tollGates: [],
+  },
   {
     from: "Bulawayo",
     to: "Beitbridge",
@@ -124,7 +539,7 @@ const distanceData = [
     time: "3h 45m",
     routeType: "highway",
     scenic: false,
-    tollCost: 3.0,
+    tollGates: ["Beitbridge Toll"],
   },
   {
     from: "Bulawayo",
@@ -133,21 +548,45 @@ const distanceData = [
     time: "2h 15m",
     routeType: "secondary",
     scenic: false,
-    tollCost: 0,
+    tollGates: [],
   },
 
   // Mutare connections
-  { from: "Mutare", to: "Gweru", distance: 353, time: "4h 00m", routeType: "main_road", scenic: false, tollCost: 0 },
-  { from: "Mutare", to: "Masvingo", distance: 271, time: "3h 15m", routeType: "main_road", scenic: false, tollCost: 0 },
-  { from: "Mutare", to: "Chipinge", distance: 131, time: "1h 45m", routeType: "secondary", scenic: true, tollCost: 0 },
-  { from: "Mutare", to: "Rusape", distance: 93, time: "1h 15m", routeType: "secondary", scenic: true, tollCost: 0 },
-  { from: "Mutare", to: "Nyanga", distance: 115, time: "1h 30m", routeType: "secondary", scenic: true, tollCost: 0 },
+  { from: "Mutare", to: "Gweru", distance: 353, time: "4h 00m", routeType: "main_road", scenic: false, tollGates: [] },
+  {
+    from: "Mutare",
+    to: "Masvingo",
+    distance: 271,
+    time: "3h 15m",
+    routeType: "main_road",
+    scenic: false,
+    tollGates: [],
+  },
+  {
+    from: "Mutare",
+    to: "Chipinge",
+    distance: 131,
+    time: "1h 45m",
+    routeType: "secondary",
+    scenic: true,
+    tollGates: [],
+  },
+  { from: "Mutare", to: "Rusape", distance: 93, time: "1h 15m", routeType: "secondary", scenic: true, tollGates: [] },
+  { from: "Mutare", to: "Nyanga", distance: 115, time: "1h 30m", routeType: "secondary", scenic: true, tollGates: [] },
 
   // Other connections with route information
-  { from: "Gweru", to: "Masvingo", distance: 157, time: "2h 00m", routeType: "main_road", scenic: false, tollCost: 0 },
-  { from: "Gweru", to: "Kadoma", distance: 134, time: "1h 40m", routeType: "main_road", scenic: false, tollCost: 0 },
-  { from: "Gweru", to: "Kwekwe", distance: 67, time: "0h 50m", routeType: "main_road", scenic: false, tollCost: 0 },
-  { from: "Gweru", to: "Shurugwi", distance: 35, time: "0h 30m", routeType: "secondary", scenic: false, tollCost: 0 },
+  {
+    from: "Gweru",
+    to: "Masvingo",
+    distance: 157,
+    time: "2h 00m",
+    routeType: "main_road",
+    scenic: false,
+    tollGates: [],
+  },
+  { from: "Gweru", to: "Kadoma", distance: 134, time: "1h 40m", routeType: "main_road", scenic: false, tollGates: [] },
+  { from: "Gweru", to: "Kwekwe", distance: 67, time: "0h 50m", routeType: "main_road", scenic: false, tollGates: [] },
+  { from: "Gweru", to: "Shurugwi", distance: 35, time: "0h 30m", routeType: "secondary", scenic: false, tollGates: [] },
   {
     from: "Gweru",
     to: "Zvishavane",
@@ -155,7 +594,7 @@ const distanceData = [
     time: "1h 30m",
     routeType: "secondary",
     scenic: false,
-    tollCost: 0,
+    tollGates: [],
   },
 
   {
@@ -165,7 +604,7 @@ const distanceData = [
     time: "2h 15m",
     routeType: "main_road",
     scenic: false,
-    tollCost: 0,
+    tollGates: [],
   },
   {
     from: "Masvingo",
@@ -174,7 +613,7 @@ const distanceData = [
     time: "3h 30m",
     routeType: "highway",
     scenic: false,
-    tollCost: 3.0,
+    tollGates: ["Beitbridge Toll"],
   },
   {
     from: "Masvingo",
@@ -183,7 +622,7 @@ const distanceData = [
     time: "1h 15m",
     routeType: "secondary",
     scenic: false,
-    tollCost: 0,
+    tollGates: [],
   },
   {
     from: "Masvingo",
@@ -192,7 +631,7 @@ const distanceData = [
     time: "1h 50m",
     routeType: "secondary",
     scenic: false,
-    tollCost: 0,
+    tollGates: [],
   },
 
   // Additional connections
@@ -203,15 +642,23 @@ const distanceData = [
     time: "1h 50m",
     routeType: "main_road",
     scenic: true,
-    tollCost: 0,
+    tollGates: [],
   },
-  { from: "Chinhoyi", to: "Kadoma", distance: 89, time: "1h 10m", routeType: "main_road", scenic: false, tollCost: 0 },
-  { from: "Chegutu", to: "Kadoma", distance: 30, time: "0h 25m", routeType: "main_road", scenic: false, tollCost: 0 },
-  { from: "Chegutu", to: "Norton", distance: 70, time: "0h 55m", routeType: "main_road", scenic: false, tollCost: 0 },
-  { from: "Norton", to: "Chegutu", distance: 70, time: "0h 55m", routeType: "main_road", scenic: false, tollCost: 0 },
-  { from: "Kwekwe", to: "Kadoma", distance: 67, time: "0h 50m", routeType: "main_road", scenic: false, tollCost: 0 },
-  { from: "Kwekwe", to: "Redcliff", distance: 15, time: "0h 15m", routeType: "urban", scenic: false, tollCost: 0 },
-  { from: "Bindura", to: "Shamva", distance: 29, time: "0h 30m", routeType: "secondary", scenic: false, tollCost: 0 },
+  {
+    from: "Chinhoyi",
+    to: "Kadoma",
+    distance: 89,
+    time: "1h 10m",
+    routeType: "main_road",
+    scenic: false,
+    tollGates: [],
+  },
+  { from: "Chegutu", to: "Kadoma", distance: 30, time: "0h 25m", routeType: "main_road", scenic: false, tollGates: [] },
+  { from: "Chegutu", to: "Norton", distance: 70, time: "0h 55m", routeType: "main_road", scenic: false, tollGates: [] },
+  { from: "Norton", to: "Chegutu", distance: 70, time: "0h 55m", routeType: "main_road", scenic: false, tollGates: [] },
+  { from: "Kwekwe", to: "Kadoma", distance: 67, time: "0h 50m", routeType: "main_road", scenic: false, tollGates: [] },
+  { from: "Kwekwe", to: "Redcliff", distance: 15, time: "0h 15m", routeType: "urban", scenic: false, tollGates: [] },
+  { from: "Bindura", to: "Shamva", distance: 29, time: "0h 30m", routeType: "secondary", scenic: false, tollGates: [] },
   {
     from: "Bindura",
     to: "Mt Darwin",
@@ -219,9 +666,17 @@ const distanceData = [
     time: "1h 30m",
     routeType: "secondary",
     scenic: false,
-    tollCost: 0,
+    tollGates: [],
   },
-  { from: "Marondera", to: "Rusape", distance: 95, time: "1h 10m", routeType: "secondary", scenic: true, tollCost: 0 },
+  {
+    from: "Marondera",
+    to: "Rusape",
+    distance: 95,
+    time: "1h 10m",
+    routeType: "secondary",
+    scenic: true,
+    tollGates: [],
+  },
   {
     from: "Marondera",
     to: "Macheke",
@@ -229,9 +684,9 @@ const distanceData = [
     time: "0h 35m",
     routeType: "secondary",
     scenic: false,
-    tollCost: 0,
+    tollGates: [],
   },
-  { from: "Rusape", to: "Nyanga", distance: 98, time: "1h 15m", routeType: "secondary", scenic: true, tollCost: 0 },
+  { from: "Rusape", to: "Nyanga", distance: 98, time: "1h 15m", routeType: "secondary", scenic: true, tollGates: [] },
   {
     from: "Beitbridge",
     to: "Gwanda",
@@ -239,7 +694,7 @@ const distanceData = [
     time: "2h 15m",
     routeType: "main_road",
     scenic: false,
-    tollCost: 0,
+    tollGates: [],
   },
   {
     from: "Gwanda",
@@ -248,7 +703,7 @@ const distanceData = [
     time: "0h 55m",
     routeType: "secondary",
     scenic: false,
-    tollCost: 0,
+    tollGates: [],
   },
   {
     from: "Chiredzi",
@@ -257,7 +712,7 @@ const distanceData = [
     time: "0h 25m",
     routeType: "secondary",
     scenic: false,
-    tollCost: 0,
+    tollGates: [],
   },
   {
     from: "Chiredzi",
@@ -266,9 +721,17 @@ const distanceData = [
     time: "2h 20m",
     routeType: "secondary",
     scenic: false,
-    tollCost: 0,
+    tollGates: [],
   },
-  { from: "Nyanga", to: "Juliasdale", distance: 20, time: "0h 20m", routeType: "secondary", scenic: true, tollCost: 0 },
+  {
+    from: "Nyanga",
+    to: "Juliasdale",
+    distance: 20,
+    time: "0h 20m",
+    routeType: "secondary",
+    scenic: true,
+    tollGates: [],
+  },
   {
     from: "Zvishavane",
     to: "Shurugwi",
@@ -276,7 +739,7 @@ const distanceData = [
     time: "1h 00m",
     routeType: "secondary",
     scenic: false,
-    tollCost: 0,
+    tollGates: [],
   },
 ]
 
@@ -300,7 +763,7 @@ const buildGraph = () => {
       time: route.time,
       routeType: route.routeType,
       scenic: route.scenic,
-      tollCost: route.tollCost || 0,
+      tollGates: route.tollGates || [],
       alternative: route.alternative || false,
     })
 
@@ -310,12 +773,27 @@ const buildGraph = () => {
       time: route.time,
       routeType: route.routeType,
       scenic: route.scenic,
-      tollCost: route.tollCost || 0,
+      tollGates: route.tollGates || [],
       alternative: route.alternative || false,
     })
   })
 
   return graph
+}
+
+// Calculate real-time number of toll gates based on distance and route
+const calculateTollGatesForRoute = (segments) => {
+  const uniqueTollGates = new Map()
+
+  segments.forEach((segment) => {
+    if (segment.tollGates && segment.tollGates.length > 0) {
+      segment.tollGates.forEach((tollGate) => {
+        uniqueTollGates.set(tollGate.id, tollGate)
+      })
+    }
+  })
+
+  return Array.from(uniqueTollGates.values())
 }
 
 // Find multiple routes (shortest, fastest, scenic)
@@ -422,13 +900,15 @@ const findScenicRoute = (graph, start, end) => {
   return []
 }
 
-// Get route details between two cities
+// Update the getRouteDetails function to include actual toll gates
 const getRouteDetails = (from, to) => {
   const route = distanceData.find(
     (route) => (route.from === from && route.to === to) || (route.from === to && route.to === from),
   )
 
   if (route) {
+    const actualTollGates = findTollGatesOnSegment(from, to, route.distance)
+
     return {
       from: from,
       to: to,
@@ -436,7 +916,7 @@ const getRouteDetails = (from, to) => {
       time: route.time,
       routeType: route.routeType,
       scenic: route.scenic,
-      tollCost: route.tollCost || 0,
+      tollGates: actualTollGates, // Now contains actual toll gate objects
     }
   }
 
@@ -467,26 +947,20 @@ const calculateFuelCost = (distance, vehicleType) => {
   return litresNeeded * FUEL_PRICE_USD
 }
 
-// Get toll gates for route
-const getRouteTollGates = (segments) => {
-  const routeTolls = []
-  let totalTollCost = 0
+// Update the calculateTollCosts function to work with actual toll gate objects
+const calculateTollCosts = (tollGateObjects, vehicleType) => {
+  const tollCategory = vehicleTypes[vehicleType].tollCategory
+  const tollFeePerGate = tollFees[tollCategory]
+  const numberOfTollGates = tollGateObjects.length
 
-  segments.forEach((segment) => {
-    if (segment.tollCost > 0) {
-      const routeKey = `${segment.from}-${segment.to}`
-      const toll = tollGates.find((toll) =>
-        toll.routes.some((route) => route.includes(segment.from) && route.includes(segment.to)),
-      )
-
-      if (toll) {
-        routeTolls.push(toll)
-        totalTollCost += segment.tollCost
-      }
-    }
-  })
-
-  return { tolls: routeTolls, totalCost: totalTollCost }
+  return {
+    tollGates: tollGateObjects.map((tollGate) => ({
+      ...tollGate,
+      cost: tollFeePerGate,
+    })),
+    totalCost: numberOfTollGates * tollFeePerGate,
+    numberOfGates: numberOfTollGates,
+  }
 }
 
 // Check for border crossings
@@ -555,7 +1029,8 @@ export default function DistanceTableSystem() {
         const formattedTime = `${totalHours}h ${remainingMinutes}m`
 
         const fuelCost = calculateFuelCost(totalDistance, selectedVehicle)
-        const tollInfo = getRouteTollGates(segments)
+        const tollGateObjects = calculateTollGatesForRoute(segments)
+        const tollInfo = calculateTollCosts(tollGateObjects, selectedVehicle)
         const borderCrossings = getBorderCrossings(segments)
 
         return {
@@ -689,7 +1164,7 @@ export default function DistanceTableSystem() {
                   <Card className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
                     <CardContent className="pt-4 sm:pt-6">
                       {/* Route Summary */}
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 text-center mb-4 sm:mb-6">
+                      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 text-center mb-4 sm:mb-6">
                         <div>
                           <p className="text-xs sm:text-sm text-muted-foreground">Route</p>
                           <p className="text-sm sm:text-lg font-semibold">
@@ -709,6 +1184,15 @@ export default function DistanceTableSystem() {
                           <p className="text-xs sm:text-sm text-muted-foreground">Travel Time</p>
                           <p className="text-sm sm:text-lg font-semibold text-blue-600 dark:text-blue-400">
                             {activeRoute.totalTime}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs sm:text-sm text-muted-foreground">Toll Gates</p>
+                          <p className="text-lg sm:text-2xl font-bold text-purple-600 dark:text-purple-400">
+                            {activeRoute.tollInfo.numberOfGates}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            ${tollFees[vehicleTypes[selectedVehicle].tollCategory].toFixed(2)} each
                           </p>
                         </div>
                         <div>
@@ -732,7 +1216,7 @@ export default function DistanceTableSystem() {
                             Costs
                           </TabsTrigger>
                           <TabsTrigger value="tolls" className="text-xs sm:text-sm">
-                            Toll Gates
+                            Toll Gates ({activeRoute.tollInfo.numberOfGates})
                           </TabsTrigger>
                           <TabsTrigger value="borders" className="text-xs sm:text-sm">
                             Border Info
@@ -753,6 +1237,11 @@ export default function DistanceTableSystem() {
                                 {segment.scenic && (
                                   <Badge variant="outline" className="text-xs">
                                     Scenic
+                                  </Badge>
+                                )}
+                                {segment.tollGates && segment.tollGates.length > 0 && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {segment.tollGates.length} Toll{segment.tollGates.length > 1 ? "s" : ""}
                                   </Badge>
                                 )}
                               </div>
@@ -808,7 +1297,7 @@ export default function DistanceTableSystem() {
                                   <span>${activeRoute.fuelCost.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                  <span>Tolls:</span>
+                                  <span>Tolls ({activeRoute.tollInfo.numberOfGates} gates):</span>
                                   <span>${activeRoute.tollInfo.totalCost.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between font-semibold border-t pt-2 text-sm sm:text-lg">
@@ -818,33 +1307,75 @@ export default function DistanceTableSystem() {
                               </div>
                             </Card>
                           </div>
+
+                          {/* Toll Fee Structure */}
+                          <Card className="p-3 sm:p-4 bg-blue-50 dark:bg-blue-950/20">
+                            <h4 className="font-medium text-sm sm:text-base mb-3">Zimbabwe Toll Fee Structure</h4>
+                            <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 text-xs sm:text-sm">
+                              {Object.entries(tollFees).map(([category, fee]) => (
+                                <div key={category} className="flex justify-between">
+                                  <span className="capitalize">{category.replace("_", " ")}:</span>
+                                  <span className="font-semibold">${fee.toFixed(2)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </Card>
                         </TabsContent>
 
                         <TabsContent value="tolls" className="space-y-3 mt-4">
-                          {activeRoute.tollInfo.tolls.length > 0 ? (
+                          {activeRoute.tollInfo.numberOfGates > 0 ? (
                             <>
-                              <h4 className="font-medium text-sm sm:text-base">Toll Gates on Route:</h4>
-                              {activeRoute.tollInfo.tolls.map((toll, index) => (
+                              <div className="flex justify-between items-center">
+                                <h4 className="font-medium text-sm sm:text-base">Toll Gates on Route:</h4>
+                                <Badge variant="outline" className="text-xs">
+                                  {activeRoute.tollInfo.numberOfGates} Gate
+                                  {activeRoute.tollInfo.numberOfGates > 1 ? "s" : ""}
+                                </Badge>
+                              </div>
+                              {activeRoute.tollInfo.tollGates.map((toll, index) => (
                                 <div key={index} className="bg-background/70 rounded-md p-3">
                                   <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
                                     <div>
                                       <h5 className="font-medium text-sm">{toll.name}</h5>
                                       <p className="text-xs text-muted-foreground">{toll.location}</p>
+                                      <p className="text-xs text-muted-foreground">Highway: {toll.highway}</p>
+                                      <p className="text-xs text-muted-foreground">
+                                        Vehicle: {vehicleTypes[selectedVehicle].name}
+                                      </p>
                                     </div>
-                                    <Badge variant="outline" className="text-xs">
-                                      ${toll.cost.toFixed(2)}
-                                    </Badge>
+                                    <div className="text-right">
+                                      <Badge variant="outline" className="text-xs mb-1">
+                                        ${toll.cost.toFixed(2)}
+                                      </Badge>
+                                      <p className="text-xs text-muted-foreground">
+                                        {toll.kmFromHarare
+                                          ? `${toll.kmFromHarare}km from Harare`
+                                          : toll.kmFromBulawayo
+                                            ? `${toll.kmFromBulawayo}km from Bulawayo`
+                                            : toll.kmFromMutare
+                                              ? `${toll.kmFromMutare}km from Mutare`
+                                              : ""}
+                                      </p>
+                                    </div>
                                   </div>
                                 </div>
                               ))}
-                              <div className="text-right font-semibold text-sm">
+                              <div className="text-right font-semibold text-sm bg-green-50 dark:bg-green-950/20 p-3 rounded-md">
                                 Total Toll Cost: ${activeRoute.tollInfo.totalCost.toFixed(2)}
+                                <p className="text-xs text-muted-foreground font-normal">
+                                  {activeRoute.tollInfo.numberOfGates} toll gate
+                                  {activeRoute.tollInfo.numberOfGates > 1 ? "s" : ""} × $
+                                  {tollFees[vehicleTypes[selectedVehicle].tollCategory].toFixed(2)} each
+                                </p>
                               </div>
                             </>
                           ) : (
-                            <p className="text-muted-foreground text-center py-4 text-sm">
-                              No toll gates on this route
-                            </p>
+                            <div className="text-center py-8">
+                              <p className="text-muted-foreground text-sm mb-2">No toll gates on this route</p>
+                              <p className="text-xs text-muted-foreground">
+                                This route uses secondary roads or urban streets without toll facilities
+                              </p>
+                            </div>
                           )}
                         </TabsContent>
 
@@ -974,9 +1505,9 @@ export default function DistanceTableSystem() {
                                 Scenic
                               </Badge>
                             )}
-                            {item.tollCost > 0 && (
+                            {item.tollGates && item.tollGates.length > 0 && (
                               <Badge variant="outline" className="text-xs">
-                                Toll
+                                {item.tollGates.length} Toll{item.tollGates.length > 1 ? "s" : ""}
                               </Badge>
                             )}
                             {item.alternative && (
@@ -1030,7 +1561,9 @@ export default function DistanceTableSystem() {
           <Card>
             <CardContent className="pt-4 sm:pt-6">
               <div className="text-center">
-                <p className="text-xl sm:text-2xl font-bold text-purple-600 dark:text-purple-400">{tollGates.length}</p>
+                <p className="text-xl sm:text-2xl font-bold text-purple-600 dark:text-purple-400">
+                  {zimbabweTollGates.length}
+                </p>
                 <p className="text-xs sm:text-sm text-muted-foreground">Toll Gates</p>
               </div>
             </CardContent>
