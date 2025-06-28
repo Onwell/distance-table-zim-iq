@@ -6,7 +6,7 @@ import "./globals.css"
 export const metadata: Metadata = {
   title: "Zimbabwe Distance Calculator",
   description: "Calculate distances and travel times between major cities in Zimbabwe",
-  generator: "v0.dev",
+  generator: "",
 }
 
 export default function RootLayout({
