@@ -1,4 +1,6 @@
+
 "use client"
+import Link from "next/link";
 
 import { useState, useMemo } from "react"
 import { Search, Route, ArrowRight, Fuel, Car, Truck, Bus, Bike, MapPin, DollarSign, AlertTriangle } from "lucide-react"
@@ -1714,7 +1716,15 @@ export default function DistanceTableSystem() {
 
         {/* Footer */}
         <footer className="mt-8 sm:mt-12 py-6 sm:py-8 border-t border-border bg-background/50 backdrop-blur-sm rounded-lg">
-          <div className="text-center">
+          <div className="text-center space-y-2">
+            <div className="flex flex-wrap justify-center gap-4 mb-2">
+              <Link
+                href="/disclaimer"
+                className="text-xs sm:text-sm text-blue-600 hover:underline"
+              >
+                Disclaimer
+              </Link>
+            </div>
             <p className="text-xs sm:text-sm text-muted-foreground">
               Copyright © 2025, developed by <span className="font-semibold text-foreground">Onwell Masaraure</span>
             </p>
