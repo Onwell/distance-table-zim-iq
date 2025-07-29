@@ -1724,6 +1724,12 @@ export default function DistanceTableSystem() {
               >
                 Disclaimer
               </Link>
+              <Link
+                href="/terms-and-conditions"
+                className="text-xs sm:text-sm text-blue-600 hover:underline"
+              >
+                Terms & Conditions
+              </Link>
             </div>
             <p className="text-xs sm:text-sm text-muted-foreground">
               Copyright © 2025, developed by <span className="font-semibold text-foreground">Onwell Masaraure</span>
