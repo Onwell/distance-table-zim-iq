@@ -66,6 +66,16 @@ const FUEL_PRICE_USD = 1.45
 
 // Comprehensive Zimbabwe toll gates with actual locations
 const zimbabweTollGates = [
+  // A1 Highway (Harare-Banket)
+  {
+    id: "inkomo_toll",
+    name: "Inkomo Toll Plaza",
+    location: "A1 Highway, Inkomo (Harare-Chirundu Road)",
+    highway: "A1",
+    coordinates: { lat: -17.6833, lng: 30.7667 },
+    kmFromHarare: 40,
+    serves: ["Harare-Banket", "Banket-Harare", "Harare-Chirundu"],
+  },
   // A1 Highway (Harare-Chirundu)
   {
     id: "makuti_toll",
@@ -248,11 +258,23 @@ const zimbabweTollGates = [
 ]
 
 // Function to find toll gates on a specific route segment
-const findTollGatesOnSegment = (fromCity, toCity, distance) => {
-  const routeTollGates = []
+type TollGate = typeof zimbabweTollGates[number];
+type DistanceRoute = {
+  from: string;
+  to: string;
+  distance: number;
+  time: string;
+  routeType: string;
+  scenic: boolean;
+  tollGates: string[] | TollGate[];
+  alternative?: boolean;
+};
+
+const findTollGatesOnSegment = (fromCity: string, toCity: string, distance: number): TollGate[] => {
+  const routeTollGates: TollGate[] = []
 
   // Define route mappings to toll gates
-  const routeMappings = {
+  const routeMappings: Record<string, string[]> = {
     // A1 Routes
     "Harare-Chirundu": ["makuti_toll"],
     "Harare-Kariba": ["makuti_toll"],
@@ -302,11 +324,10 @@ const findTollGatesOnSegment = (fromCity, toCity, distance) => {
   // Check both directions
   const routeKey1 = `${fromCity}-${toCity}`
   const routeKey2 = `${toCity}-${fromCity}`
-
-  const tollGateIds = routeMappings[routeKey1] || routeMappings[routeKey2] || []
+  const tollGateIds: string[] = routeMappings[routeKey1] || routeMappings[routeKey2] || []
 
   // Get toll gate details
-  tollGateIds.forEach((tollId) => {
+  tollGateIds.forEach((tollId: string) => {
     const tollGate = zimbabweTollGates.find((tg) => tg.id === tollId)
     if (tollGate) {
       routeTollGates.push(tollGate)
@@ -367,8 +388,63 @@ const provincialBoundaries = [
 ]
 
 // Expanded distance data with route types and toll information
-const distanceData = [
+const distanceData: DistanceRoute[] = [
+  // Chinhoyi-Banket correct distance
+  {
+    from: "Chinhoyi",
+    to: "Banket",
+    distance: 23.9,
+    time: "0h 20m",
+    routeType: "main_road",
+    scenic: false,
+    tollGates: [],
+  },
+  {
+    from: "Banket",
+    to: "Chinhoyi",
+    distance: 23.9,
+    time: "0h 20m",
+    routeType: "main_road",
+    scenic: false,
+    tollGates: [],
+  },
   // Major highways with route types
+  {
+    from: "Harare",
+    to: "Banket",
+    distance: 95,
+    time: "1h 15m",
+    routeType: "main_road",
+    scenic: false,
+    tollGates: ["Inkomo Toll Plaza"],
+  },
+  {
+    from: "Banket",
+    to: "Harare",
+    distance: 95,
+    time: "1h 15m",
+    routeType: "main_road",
+    scenic: false,
+    tollGates: ["Inkomo Toll Plaza"],
+  },
+  {
+    from: "Harare",
+    to: "Kariba",
+    distance: 365,
+    time: "5h 30m",
+    routeType: "main_road",
+    scenic: true,
+    tollGates: ["Makuti Toll Plaza"],
+  },
+  {
+    from: "Kariba",
+    to: "Harare",
+    distance: 365,
+    time: "5h 30m",
+    routeType: "main_road",
+    scenic: true,
+    tollGates: ["Makuti Toll Plaza"],
+  },
   {
     from: "Harare",
     to: "Bulawayo",
@@ -743,12 +819,20 @@ const distanceData = [
   },
 ]
 
-const cities = Array.from(new Set([...distanceData.map((d) => d.from), ...distanceData.map((d) => d.to)])).sort()
+const cities: string[] = Array.from(new Set([...distanceData.map((d) => d.from), ...distanceData.map((d) => d.to)])).sort()
 
 // Build graph for route finding
-const buildGraph = () => {
-  const graph = new Map()
-
+type Graph = Map<string, Array<{
+  city: string;
+  distance: number;
+  time: string;
+  routeType: string;
+  scenic: boolean;
+  tollGates: string[] | TollGate[];
+  alternative: boolean;
+}>>;
+const buildGraph = (): Graph => {
+  const graph: Graph = new Map()
   distanceData.forEach((route) => {
     if (!graph.has(route.from)) {
       graph.set(route.from, [])
@@ -756,8 +840,7 @@ const buildGraph = () => {
     if (!graph.has(route.to)) {
       graph.set(route.to, [])
     }
-
-    graph.get(route.from).push({
+    graph.get(route.from)!.push({
       city: route.to,
       distance: route.distance,
       time: route.time,
@@ -766,8 +849,7 @@ const buildGraph = () => {
       tollGates: route.tollGates || [],
       alternative: route.alternative || false,
     })
-
-    graph.get(route.to).push({
+    graph.get(route.to)!.push({
       city: route.from,
       distance: route.distance,
       time: route.time,
@@ -777,28 +859,36 @@ const buildGraph = () => {
       alternative: route.alternative || false,
     })
   })
-
   return graph
 }
 
 // Calculate real-time number of toll gates based on distance and route
-const calculateTollGatesForRoute = (segments) => {
-  const uniqueTollGates = new Map()
-
+const calculateTollGatesForRoute = (segments: Array<{ tollGates: TollGate[] }>): TollGate[] => {
+  const uniqueTollGates = new Map<string, TollGate>()
   segments.forEach((segment) => {
     if (segment.tollGates && segment.tollGates.length > 0) {
-      segment.tollGates.forEach((tollGate) => {
+      (segment.tollGates as TollGate[]).forEach((tollGate) => {
         uniqueTollGates.set(tollGate.id, tollGate)
       })
     }
   })
-
   return Array.from(uniqueTollGates.values())
 }
 
 // Find multiple routes (shortest, fastest, scenic)
-const findMultipleRoutes = (graph, start, end) => {
-  const routes = []
+type RouteResult = {
+  type: string;
+  path: string[];
+  priority: number;
+  segments?: Array<ReturnType<typeof getRouteDetails>>;
+  totalDistance?: number;
+  totalTime?: string;
+  fuelCost?: number;
+  tollInfo?: ReturnType<typeof calculateTollCosts>;
+  borderCrossings?: Array<{ from: string; to: string; location: string }>;
+};
+const findMultipleRoutes = (graph: Graph, start: string, end: string): RouteResult[] => {
+  const routes: RouteResult[] = []
 
   // Find shortest distance route
   const shortestRoute = findShortestPath(graph, start, end, "distance")
@@ -822,93 +912,74 @@ const findMultipleRoutes = (graph, start, end) => {
 }
 
 // Modified Dijkstra's algorithm
-const findShortestPath = (graph, start, end, optimizeFor = "distance") => {
-  const distances = new Map()
-  const previous = new Map()
-  const unvisited = new Set()
-
+const findShortestPath = (graph: Graph, start: string, end: string, optimizeFor = "distance"): string[] => {
+  const distances = new Map<string, number>()
+  const previous = new Map<string, string>()
+  const unvisited = new Set<string>()
   for (const city of graph.keys()) {
     distances.set(city, city === start ? 0 : Number.POSITIVE_INFINITY)
     unvisited.add(city)
   }
-
   while (unvisited.size > 0) {
-    let current = null
+    let current: string | null = null
     let minDistance = Number.POSITIVE_INFINITY
-
     for (const city of unvisited) {
-      if (distances.get(city) < minDistance) {
-        minDistance = distances.get(city)
+      if ((distances.get(city) ?? Number.POSITIVE_INFINITY) < minDistance) {
+        minDistance = distances.get(city) ?? Number.POSITIVE_INFINITY
         current = city
       }
     }
-
     if (current === null || current === end) break
-
     unvisited.delete(current)
-
-    for (const neighbor of graph.get(current)) {
+    for (const neighbor of graph.get(current) ?? []) {
       if (unvisited.has(neighbor.city)) {
         let weight = neighbor.distance
         if (optimizeFor === "time") {
-          // Convert time to minutes for comparison
           const timeParts = neighbor.time.split(" ")
           const hours = Number.parseInt(timeParts[0]) || 0
           const minutes = Number.parseInt(timeParts[1]) || 0
           weight = hours * 60 + minutes
         }
-
-        const alt = distances.get(current) + weight
-        if (alt < distances.get(neighbor.city)) {
+        const alt = (distances.get(current) ?? 0) + weight
+        if (alt < (distances.get(neighbor.city) ?? Number.POSITIVE_INFINITY)) {
           distances.set(neighbor.city, alt)
           previous.set(neighbor.city, current)
         }
       }
     }
   }
-
-  // Reconstruct path
-  const path = []
-  let current = end
-
+  const path: string[] = []
+  let current: string | undefined = end
   while (current !== start) {
     path.unshift(current)
     current = previous.get(current)
     if (!current) return []
   }
-
   path.unshift(start)
   return path
 }
 
 // Find scenic route (prioritize scenic roads)
-const findScenicRoute = (graph, start, end) => {
-  // Simple implementation - find route that includes scenic segments
+const findScenicRoute = (graph: Graph, start: string, end: string): string[] => {
   const allRoutes = distanceData.filter((route) => route.scenic)
-  const scenicCities = new Set()
-
+  const scenicCities = new Set<string>()
   allRoutes.forEach((route) => {
     scenicCities.add(route.from)
     scenicCities.add(route.to)
   })
-
-  // Try to find a path that goes through scenic cities
   if (scenicCities.has(start) || scenicCities.has(end)) {
     return findShortestPath(graph, start, end, "distance")
   }
-
   return []
 }
 
 // Update the getRouteDetails function to include actual toll gates
-const getRouteDetails = (from, to) => {
+const getRouteDetails = (from: string, to: string) => {
   const route = distanceData.find(
     (route) => (route.from === from && route.to === to) || (route.from === to && route.to === from),
   )
-
   if (route) {
     const actualTollGates = findTollGatesOnSegment(from, to, route.distance)
-
     return {
       from: from,
       to: to,
@@ -916,43 +987,38 @@ const getRouteDetails = (from, to) => {
       time: route.time,
       routeType: route.routeType,
       scenic: route.scenic,
-      tollGates: actualTollGates, // Now contains actual toll gate objects
+      tollGates: actualTollGates,
     }
   }
-
   return null
 }
 
 // Build route segments from path
-const buildRouteSegments = (path) => {
-  const segments = []
-
+const buildRouteSegments = (path: string[]): Array<ReturnType<typeof getRouteDetails>> => {
+  const segments: Array<ReturnType<typeof getRouteDetails>> = []
   for (let i = 0; i < path.length - 1; i++) {
     const from = path[i]
     const to = path[i + 1]
     const details = getRouteDetails(from, to)
-
     if (details) {
       segments.push(details)
     }
   }
-
   return segments
 }
 
 // Calculate fuel cost
-const calculateFuelCost = (distance, vehicleType) => {
+const calculateFuelCost = (distance: number, vehicleType: keyof typeof vehicleTypes): number => {
   const consumption = vehicleTypes[vehicleType].consumption
   const litresNeeded = distance / consumption
   return litresNeeded * FUEL_PRICE_USD
 }
 
 // Update the calculateTollCosts function to work with actual toll gate objects
-const calculateTollCosts = (tollGateObjects, vehicleType) => {
+const calculateTollCosts = (tollGateObjects: TollGate[], vehicleType: keyof typeof vehicleTypes) => {
   const tollCategory = vehicleTypes[vehicleType].tollCategory
-  const tollFeePerGate = tollFees[tollCategory]
+  const tollFeePerGate = tollFees[tollCategory as keyof typeof tollFees]
   const numberOfTollGates = tollGateObjects.length
-
   return {
     tollGates: tollGateObjects.map((tollGate) => ({
       ...tollGate,
@@ -964,14 +1030,12 @@ const calculateTollCosts = (tollGateObjects, vehicleType) => {
 }
 
 // Check for border crossings
-const getBorderCrossings = (segments) => {
-  const crossings = []
-
+const getBorderCrossings = (segments: Array<{ from: string; to: string }>) => {
+  const crossings: Array<{ from: string; to: string; location: string }> = []
   segments.forEach((segment) => {
     const crossing = provincialBoundaries.find(
       (boundary) => boundary.cities.includes(segment.from) && boundary.cities.includes(segment.to),
     )
-
     if (crossing) {
       crossings.push({
         from: crossing.from,
@@ -980,17 +1044,17 @@ const getBorderCrossings = (segments) => {
       })
     }
   })
-
   return crossings
 }
 
+import type { FC } from "react"
 export default function DistanceTableSystem() {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [fromCity, setFromCity] = useState("")
-  const [toCity, setToCity] = useState("")
-  const [selectedVehicle, setSelectedVehicle] = useState("car")
-  const [selectedRoutes, setSelectedRoutes] = useState([])
-  const [activeRouteIndex, setActiveRouteIndex] = useState(0)
+  const [searchTerm, setSearchTerm] = useState<string>("")
+  const [fromCity, setFromCity] = useState<string>("")
+  const [toCity, setToCity] = useState<string>("")
+  const [selectedVehicle, setSelectedVehicle] = useState<keyof typeof vehicleTypes>("car")
+  const [selectedRoutes, setSelectedRoutes] = useState<RouteResult[]>([])
+  const [activeRouteIndex, setActiveRouteIndex] = useState<number>(0)
 
   const filteredData = useMemo(() => {
     return distanceData.filter((item) => {
@@ -1017,11 +1081,13 @@ export default function DistanceTableSystem() {
         let totalTimeMinutes = 0
 
         segments.forEach((segment) => {
-          totalDistance += segment.distance
-          const timeParts = segment.time.split(" ")
-          const hours = Number.parseInt(timeParts[0]) || 0
-          const minutes = Number.parseInt(timeParts[1]) || 0
-          totalTimeMinutes += hours * 60 + minutes
+          if (segment) {
+            totalDistance += segment.distance
+            const timeParts = segment.time.split(" ")
+            const hours = Number.parseInt(timeParts[0]) || 0
+            const minutes = Number.parseInt(timeParts[1]) || 0
+            totalTimeMinutes += hours * 60 + minutes
+          }
         })
 
         const totalHours = Math.floor(totalTimeMinutes / 60)
@@ -1029,13 +1095,14 @@ export default function DistanceTableSystem() {
         const formattedTime = `${totalHours}h ${remainingMinutes}m`
 
         const fuelCost = calculateFuelCost(totalDistance, selectedVehicle)
-        const tollGateObjects = calculateTollGatesForRoute(segments)
+        const nonNullSegments = segments.filter((s): s is NonNullable<typeof s> => s !== null)
+        const tollGateObjects = calculateTollGatesForRoute(nonNullSegments)
         const tollInfo = calculateTollCosts(tollGateObjects, selectedVehicle)
-        const borderCrossings = getBorderCrossings(segments)
+        const borderCrossings = getBorderCrossings(nonNullSegments)
 
         return {
           ...route,
-          segments,
+          segments: nonNullSegments,
           totalDistance,
           totalTime: formattedTime,
           fuelCost,
@@ -1110,7 +1177,10 @@ export default function DistanceTableSystem() {
 
               <div>
                 <label className="text-sm font-medium mb-2 block">Vehicle Type</label>
-                <Select value={selectedVehicle} onValueChange={setSelectedVehicle}>
+                <Select
+                  value={selectedVehicle}
+                  onValueChange={(val) => setSelectedVehicle(val as keyof typeof vehicleTypes)}
+                >
                   <SelectTrigger className="h-10">
                     <SelectValue placeholder="Select vehicle" />
                   </SelectTrigger>
@@ -1189,16 +1259,16 @@ export default function DistanceTableSystem() {
                         <div>
                           <p className="text-xs sm:text-sm text-muted-foreground">Toll Gates</p>
                           <p className="text-lg sm:text-2xl font-bold text-purple-600 dark:text-purple-400">
-                            {activeRoute.tollInfo.numberOfGates}
+                            {activeRoute.tollInfo?.numberOfGates ?? 0}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            ${tollFees[vehicleTypes[selectedVehicle].tollCategory].toFixed(2)} each
+                            ${tollFees[vehicleTypes[selectedVehicle].tollCategory as keyof typeof tollFees].toFixed(2)} each
                           </p>
                         </div>
                         <div>
                           <p className="text-xs sm:text-sm text-muted-foreground">Fuel Cost</p>
                           <p className="text-sm sm:text-lg font-bold text-orange-600 dark:text-orange-400">
-                            ${activeRoute.fuelCost.toFixed(2)}
+                            ${activeRoute.fuelCost !== undefined ? activeRoute.fuelCost.toFixed(2) : "-"}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {vehicleTypes[selectedVehicle].name.split(" ")[0]} (
@@ -1216,7 +1286,7 @@ export default function DistanceTableSystem() {
                             Costs
                           </TabsTrigger>
                           <TabsTrigger value="tolls" className="text-xs sm:text-sm">
-                            Toll Gates ({activeRoute.tollInfo.numberOfGates})
+                            Toll Gates ({activeRoute.tollInfo?.numberOfGates ?? 0})
                           </TabsTrigger>
                           <TabsTrigger value="borders" className="text-xs sm:text-sm">
                             Border Info
@@ -1225,34 +1295,36 @@ export default function DistanceTableSystem() {
 
                         <TabsContent value="route" className="space-y-3 mt-4">
                           <h4 className="font-medium text-sm sm:text-base">Route Breakdown:</h4>
-                          {activeRoute.segments.map((segment, index) => (
-                            <div
-                              key={index}
-                              className="flex flex-col sm:flex-row sm:items-center justify-between bg-background/70 rounded-md p-3 gap-2"
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium text-sm">{segment.from}</span>
-                                <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
-                                <span className="font-medium text-sm">{segment.to}</span>
-                                {segment.scenic && (
-                                  <Badge variant="outline" className="text-xs">
-                                    Scenic
+                          {activeRoute.segments?.map((segment, index) => (
+                            segment ? (
+                              <div
+                                key={index}
+                                className="flex flex-col sm:flex-row sm:items-center justify-between bg-background/70 rounded-md p-3 gap-2"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-sm">{segment.from}</span>
+                                  <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+                                  <span className="font-medium text-sm">{segment.to}</span>
+                                  {segment.scenic && (
+                                    <Badge variant="outline" className="text-xs">
+                                      Scenic
+                                    </Badge>
+                                  )}
+                                  {segment.tollGates && segment.tollGates.length > 0 && (
+                                    <Badge variant="outline" className="text-xs">
+                                      {segment.tollGates.length} Toll{segment.tollGates.length > 1 ? "s" : ""}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm">
+                                  <span className="text-muted-foreground">{segment.distance} km</span>
+                                  <span className="text-blue-600 dark:text-blue-400">{segment.time}</span>
+                                  <Badge variant="secondary" className="text-xs capitalize">
+                                    {segment.routeType.replace("_", " ")}
                                   </Badge>
-                                )}
-                                {segment.tollGates && segment.tollGates.length > 0 && (
-                                  <Badge variant="outline" className="text-xs">
-                                    {segment.tollGates.length} Toll{segment.tollGates.length > 1 ? "s" : ""}
-                                  </Badge>
-                                )}
+                                </div>
                               </div>
-                              <div className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm">
-                                <span className="text-muted-foreground">{segment.distance} km</span>
-                                <span className="text-blue-600 dark:text-blue-400">{segment.time}</span>
-                                <Badge variant="secondary" className="text-xs capitalize">
-                                  {segment.routeType.replace("_", " ")}
-                                </Badge>
-                              </div>
-                            </div>
+                            ) : null
                           ))}
                         </TabsContent>
 
@@ -1271,8 +1343,7 @@ export default function DistanceTableSystem() {
                                 <div className="flex justify-between">
                                   <span>Fuel needed:</span>
                                   <span>
-                                    {(activeRoute.totalDistance / vehicleTypes[selectedVehicle].consumption).toFixed(1)}{" "}
-                                    L
+                                    {activeRoute.totalDistance !== undefined ? (activeRoute.totalDistance / vehicleTypes[selectedVehicle].consumption).toFixed(1) : "-"} L
                                   </span>
                                 </div>
                                 <div className="flex justify-between">
@@ -1281,7 +1352,7 @@ export default function DistanceTableSystem() {
                                 </div>
                                 <div className="flex justify-between font-semibold border-t pt-2">
                                   <span>Total Fuel Cost:</span>
-                                  <span>${activeRoute.fuelCost.toFixed(2)}</span>
+                                  <span>${activeRoute.fuelCost !== undefined ? activeRoute.fuelCost.toFixed(2) : "-"}</span>
                                 </div>
                               </div>
                             </Card>
@@ -1294,15 +1365,15 @@ export default function DistanceTableSystem() {
                               <div className="space-y-2 text-xs sm:text-sm">
                                 <div className="flex justify-between">
                                   <span>Fuel:</span>
-                                  <span>${activeRoute.fuelCost.toFixed(2)}</span>
+                                  <span>${activeRoute.fuelCost !== undefined ? activeRoute.fuelCost.toFixed(2) : "-"}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                  <span>Tolls ({activeRoute.tollInfo.numberOfGates} gates):</span>
-                                  <span>${activeRoute.tollInfo.totalCost.toFixed(2)}</span>
+                                  <span>Tolls ({activeRoute.tollInfo?.numberOfGates ?? 0} gates):</span>
+                                  <span>${activeRoute.tollInfo?.totalCost !== undefined ? activeRoute.tollInfo.totalCost.toFixed(2) : "-"}</span>
                                 </div>
                                 <div className="flex justify-between font-semibold border-t pt-2 text-sm sm:text-lg">
                                   <span>Total:</span>
-                                  <span>${(activeRoute.fuelCost + activeRoute.tollInfo.totalCost).toFixed(2)}</span>
+                                  <span>${activeRoute.fuelCost !== undefined && activeRoute.tollInfo?.totalCost !== undefined ? (activeRoute.fuelCost + activeRoute.tollInfo.totalCost).toFixed(2) : "-"}</span>
                                 </div>
                               </div>
                             </Card>
@@ -1323,16 +1394,16 @@ export default function DistanceTableSystem() {
                         </TabsContent>
 
                         <TabsContent value="tolls" className="space-y-3 mt-4">
-                          {activeRoute.tollInfo.numberOfGates > 0 ? (
+                          {activeRoute.tollInfo?.numberOfGates && activeRoute.tollInfo.numberOfGates > 0 ? (
                             <>
                               <div className="flex justify-between items-center">
                                 <h4 className="font-medium text-sm sm:text-base">Toll Gates on Route:</h4>
                                 <Badge variant="outline" className="text-xs">
-                                  {activeRoute.tollInfo.numberOfGates} Gate
-                                  {activeRoute.tollInfo.numberOfGates > 1 ? "s" : ""}
+                              {activeRoute.tollInfo?.numberOfGates ?? 0} Gate
+                                  {activeRoute.tollInfo && activeRoute.tollInfo.numberOfGates > 1 ? "s" : ""}
                                 </Badge>
                               </div>
-                              {activeRoute.tollInfo.tollGates.map((toll, index) => (
+                              {activeRoute.tollInfo?.tollGates?.map((toll, index) => (
                                 <div key={index} className="bg-background/70 rounded-md p-3">
                                   <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
                                     <div>
@@ -1361,11 +1432,11 @@ export default function DistanceTableSystem() {
                                 </div>
                               ))}
                               <div className="text-right font-semibold text-sm bg-green-50 dark:bg-green-950/20 p-3 rounded-md">
-                                Total Toll Cost: ${activeRoute.tollInfo.totalCost.toFixed(2)}
+                                Total Toll Cost: ${activeRoute.tollInfo?.totalCost !== undefined ? activeRoute.tollInfo.totalCost.toFixed(2) : "-"}
                                 <p className="text-xs text-muted-foreground font-normal">
-                                  {activeRoute.tollInfo.numberOfGates} toll gate
-                                  {activeRoute.tollInfo.numberOfGates > 1 ? "s" : ""} × $
-                                  {tollFees[vehicleTypes[selectedVehicle].tollCategory].toFixed(2)} each
+                                  {activeRoute.tollInfo?.numberOfGates ?? 0} toll gate
+                                  {activeRoute.tollInfo && activeRoute.tollInfo.numberOfGates > 1 ? "s" : ""} × $
+                                  {tollFees[vehicleTypes[selectedVehicle].tollCategory as keyof typeof tollFees].toFixed(2)} each
                                 </p>
                               </div>
                             </>
@@ -1380,10 +1451,10 @@ export default function DistanceTableSystem() {
                         </TabsContent>
 
                         <TabsContent value="borders" className="space-y-3 mt-4">
-                          {activeRoute.borderCrossings.length > 0 ? (
+                          {activeRoute.borderCrossings && activeRoute.borderCrossings.length > 0 ? (
                             <>
                               <h4 className="font-medium text-sm sm:text-base">Provincial Border Crossings:</h4>
-                              {activeRoute.borderCrossings.map((crossing, index) => (
+                              {activeRoute.borderCrossings?.map((crossing, index) => (
                                 <div key={index} className="bg-background/70 rounded-md p-3">
                                   <div className="flex items-center gap-2">
                                     <MapPin className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600 dark:text-blue-400" />
