@@ -389,6 +389,63 @@ const provincialBoundaries = [
 
 // Expanded distance data with route types and toll information
 const distanceData: DistanceRoute[] = [
+  // Harare to Karoi and vice versa
+  {
+    from: "Harare",
+    to: "Karoi",
+    distance: 205,
+    time: "2h 30m",
+    routeType: "main_road",
+    scenic: false,
+    tollGates: ["Inkomo Toll Plaza", "Chinhoyi Toll Plaza"],
+  },
+  {
+    from: "Karoi",
+    to: "Harare",
+    distance: 205,
+    time: "2h 30m",
+    routeType: "main_road",
+    scenic: false,
+    tollGates: ["Chinhoyi Toll Plaza", "Inkomo Toll Plaza"],
+  },
+  // Karoi to Chinhoyi and vice versa (if not present)
+  {
+    from: "Chinhoyi",
+    to: "Karoi",
+    distance: 89,
+    time: "1h 10m",
+    routeType: "main_road",
+    scenic: false,
+    tollGates: ["Chinhoyi Toll Plaza"],
+  },
+  {
+    from: "Karoi",
+    to: "Chinhoyi",
+    distance: 89,
+    time: "1h 10m",
+    routeType: "main_road",
+    scenic: false,
+    tollGates: ["Chinhoyi Toll Plaza"],
+  },
+  // Kariba to Karoi and vice versa
+  {
+    from: "Kariba",
+    to: "Karoi",
+    distance: 153,
+    time: "2h 00m",
+    routeType: "main_road",
+    scenic: true,
+    tollGates: [],
+  },
+  {
+    from: "Karoi",
+    to: "Kariba",
+    distance: 153,
+    time: "2h 00m",
+    routeType: "main_road",
+    scenic: true,
+    tollGates: [],
+  },
   // Chinhoyi-Banket correct distance
   {
     from: "Chinhoyi",
@@ -1143,36 +1200,41 @@ export default function DistanceTableSystem() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
+
               <div>
                 <label className="text-sm font-medium mb-2 block">From City</label>
-                <Select value={fromCity} onValueChange={setFromCity}>
-                  <SelectTrigger className="h-10">
-                    <SelectValue placeholder="Select departure city" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {cities.map((city) => (
-                      <SelectItem key={city} value={city}>
-                        {city}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <input
+                  type="text"
+                  className="h-10 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Type to search departure city"
+                  value={fromCity}
+                  onChange={e => setFromCity(e.target.value)}
+                  list="from-cities-list"
+                  autoComplete="off"
+                />
+                <datalist id="from-cities-list">
+                  {cities.filter(city => city.toLowerCase().includes(fromCity.toLowerCase())).map(city => (
+                    <option key={city} value={city} />
+                  ))}
+                </datalist>
               </div>
 
               <div>
                 <label className="text-sm font-medium mb-2 block">To City</label>
-                <Select value={toCity} onValueChange={setToCity}>
-                  <SelectTrigger className="h-10">
-                    <SelectValue placeholder="Select destination city" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {cities.map((city) => (
-                      <SelectItem key={city} value={city}>
-                        {city}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <input
+                  type="text"
+                  className="h-10 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Type to search destination city"
+                  value={toCity}
+                  onChange={e => setToCity(e.target.value)}
+                  list="to-cities-list"
+                  autoComplete="off"
+                />
+                <datalist id="to-cities-list">
+                  {cities.filter(city => city.toLowerCase().includes(toCity.toLowerCase())).map(city => (
+                    <option key={city} value={city} />
+                  ))}
+                </datalist>
               </div>
 
               <div>
