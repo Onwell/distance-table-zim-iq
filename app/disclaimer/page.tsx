@@ -6,10 +6,10 @@ import { Navigation } from "@/components/navigation";
 
 export default function Disclaimer() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-2 sm:p-4">
+    <div className="min-h-screen bg-background">
       <Navigation />
-      <div className="max-w-2xl mx-auto py-10 px-4">
-        <h1 className="text-2xl font-bold mb-4">Disclaimer</h1>
+      <div className="max-w-2xl mx-auto py-12 px-4">
+        <h1 className="font-serif text-3xl sm:text-4xl font-semibold mb-4">Disclaimer</h1>
         <p className="mb-4 text-sm text-muted-foreground">Last updated: July 29, 2025</p>
         <p className="mb-4">The information provided by this application is for general informational purposes only. All information on the app is provided in good faith; however, we make no representation or warranty of any kind, express or implied, regarding the accuracy, adequacy, validity, reliability, availability, or completeness of any information on the app.</p>
         <p className="mb-4">Under no circumstance shall we have any liability to you for any loss or damage of any kind incurred as a result of the use of the app or reliance on any information provided. Your use of the app and your reliance on any information is solely at your own risk.</p>
@@ -24,12 +24,12 @@ export default function Disclaimer() {
         <p className="mb-4">If you have any questions, please contact <a href="mailto:support@smugsolutions.co.zw">support@smugsolutions.co.zw</a>.</p>
       </div>
       {/* Footer */}
-      <footer className="mt-8 sm:mt-12 py-6 sm:py-8 border-t border-border bg-background/50 backdrop-blur-sm rounded-lg">
+      <footer className="mt-8 sm:mt-12 py-6 sm:py-8 border-t border-border">
         <div className="text-center space-y-2">
           <div className="flex flex-wrap justify-center gap-4 mb-2">
             <Link
               href="/disclaimer"
-              className="text-xs sm:text-sm text-blue-600 hover:underline"
+              className="text-xs sm:text-sm text-primary hover:underline"
             >
               Disclaimer
             </Link>
