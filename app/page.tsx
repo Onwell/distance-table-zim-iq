@@ -3,7 +3,7 @@
 import Link from "next/link";
 
 import { useState, useMemo } from "react"
-import { Search, Route, ArrowRight, Fuel, Car, Truck, Bus, Bike, MapPin, DollarSign, AlertTriangle } from "lucide-react"
+import { Search, Route, ArrowRight, Fuel, Car, Truck, Bus, Bike, MapPin, DollarSign, AlertTriangle, Clock, Gauge, Navigation2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -23,12 +23,15 @@ const tollFees = {
   haulage: 20.0,
 }
 
+type FuelType = "petrol" | "diesel"
+
 // Vehicle types with fuel consumption (km per litre) and toll category
 const vehicleTypes = {
   car: {
     name: "Light Motor Vehicle",
     icon: Car,
     consumption: 12,
+    fuelType: "petrol",
     color: "text-blue-600 dark:text-blue-400",
     tollCategory: "car",
   },
@@ -36,6 +39,7 @@ const vehicleTypes = {
     name: "Motor Cycle",
     icon: Bike,
     consumption: 25,
+    fuelType: "petrol",
     color: "text-green-600 dark:text-green-400",
     tollCategory: "motorcycle",
   },
@@ -43,14 +47,23 @@ const vehicleTypes = {
     name: "MiniBus",
     icon: Bus,
     consumption: 8,
+    fuelType: "diesel",
     color: "text-purple-600 dark:text-purple-400",
     tollCategory: "minibus",
   },
-  bus: { name: "Bus", icon: Bus, consumption: 4, color: "text-orange-600 dark:text-orange-400", tollCategory: "bus" },
+  bus: {
+    name: "Bus",
+    icon: Bus,
+    consumption: 4,
+    fuelType: "diesel",
+    color: "text-orange-600 dark:text-orange-400",
+    tollCategory: "bus",
+  },
   truck: {
     name: "Heavy Vehicle",
     icon: Truck,
     consumption: 3,
+    fuelType: "diesel",
     color: "text-red-600 dark:text-red-400",
     tollCategory: "truck",
   },
@@ -58,13 +71,29 @@ const vehicleTypes = {
     name: "Haulage Truck",
     icon: Truck,
     consumption: 2.5,
+    fuelType: "diesel",
     color: "text-gray-600 dark:text-gray-400",
     tollCategory: "haulage",
   },
+} satisfies Record<
+  string,
+  {
+    name: string
+    icon: typeof Car
+    consumption: number
+    fuelType: FuelType
+    color: string
+    tollCategory: keyof typeof tollFees
+  }
+>
+
+// Current ZERA fuel prices in USD per litre, as of 08-06-2026
+const FUEL_PRICES_USD: Record<FuelType, number> = {
+  petrol: 2.08,
+  diesel: 2.09,
 }
 
-// Current fuel price in USD
-const FUEL_PRICE_USD = 1.45
+const getFuelPriceUsd = (vehicleType: keyof typeof vehicleTypes) => FUEL_PRICES_USD[vehicleTypes[vehicleType].fuelType]
 
 // Comprehensive Zimbabwe toll gates with actual locations
 const zimbabweTollGates = [
@@ -1070,7 +1099,7 @@ const buildRouteSegments = (path: string[]): Array<ReturnType<typeof getRouteDet
 const calculateFuelCost = (distance: number, vehicleType: keyof typeof vehicleTypes): number => {
   const consumption = vehicleTypes[vehicleType].consumption
   const litresNeeded = distance / consumption
-  return litresNeeded * FUEL_PRICE_USD
+  return litresNeeded * getFuelPriceUsd(vehicleType)
 }
 
 // Update the calculateTollCosts function to work with actual toll gate objects
@@ -1176,39 +1205,80 @@ export default function DistanceTableSystem() {
   }
 
   const activeRoute = selectedRoutes[activeRouteIndex]
+  const selectedVehicleDetails = vehicleTypes[selectedVehicle]
+  const SelectedVehicleIcon = selectedVehicleDetails.icon
+  const totalTripCost =
+    activeRoute?.fuelCost !== undefined && activeRoute.tollInfo?.totalCost !== undefined
+      ? activeRoute.fuelCost + activeRoute.tollInfo.totalCost
+      : undefined
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-2 sm:p-4">
+    <div className="min-h-screen bg-slate-950 text-slate-50">
       <Navigation />
-      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
-        {/* Header */}
-        <div className="text-center space-y-2 sm:space-y-4 pt-2 sm:pt-4">
-          <p className="text-sm sm:text-lg text-muted-foreground max-w-2xl mx-auto px-4">
-            Calculate distances, travel times, fuel costs, and get detailed route information between major cities in
-            Zimbabwe.
-          </p>
-        </div>
+      <div className="mx-auto max-w-7xl space-y-5 px-4 py-5 sm:px-6 lg:px-8">
+        <section className="overflow-hidden rounded-lg border border-slate-800 bg-slate-950 text-white shadow-2xl shadow-black/30">
+          <div className="grid gap-0 lg:grid-cols-[1.1fr_0.9fr]">
+            <div className="space-y-7 p-5 sm:p-8 lg:p-10">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className="bg-emerald-400 text-slate-950 hover:bg-emerald-400">Zimbabwe routes</Badge>
+                <Badge variant="outline" className="border-white/20 bg-white/5 text-white">
+                  ZERA fuel prices
+                </Badge>
+              </div>
+              <div className="max-w-3xl space-y-4">
+                <h1 className="text-3xl font-semibold tracking-normal sm:text-5xl lg:text-6xl">
+                  Premium trip intelligence for Zimbabwe travel.
+                </h1>
+                <p className="max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
+                  Plan routes with distance, time, fuel, toll gates, and provincial crossing details in one focused
+                  workspace.
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 border-t border-white/10 bg-white/[0.04] p-5 sm:p-8 lg:border-l lg:border-t-0 lg:p-10">
+              {[
+                { label: "Cities", value: cities.length, icon: MapPin },
+                { label: "Routes", value: distanceData.length, icon: Route },
+                { label: "Toll gates", value: zimbabweTollGates.length, icon: DollarSign },
+                {
+                  label: "Fuel USD/L",
+                  value: `${FUEL_PRICES_USD.petrol.toFixed(2)} / ${FUEL_PRICES_USD.diesel.toFixed(2)}`,
+                  icon: Fuel,
+                },
+              ].map((item) => {
+                const Icon = item.icon
+                return (
+                  <div key={item.label} className="rounded-lg border border-white/10 bg-white/[0.06] p-4">
+                    <Icon className="mb-3 h-4 w-4 text-emerald-300" />
+                    <p className="text-xl font-semibold">{item.value}</p>
+                    <p className="text-xs uppercase tracking-[0.18em] text-slate-400">{item.label}</p>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </section>
 
         {/* Route Calculator */}
-        <Card className="shadow-lg">
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-              <Route className="h-4 w-4 sm:h-5 sm:w-5" />
-              Advanced Route Calculator
+        <Card className="overflow-hidden border-slate-800 bg-slate-900 shadow-xl shadow-black/20">
+          <CardHeader className="border-b border-slate-800 bg-slate-900 pb-5">
+            <CardTitle className="flex items-center gap-2 text-xl sm:text-2xl">
+              <Navigation2 className="h-5 w-5 text-emerald-600" />
+              Route Planner
             </CardTitle>
             <CardDescription className="text-sm">
-              Select your departure and destination cities, choose vehicle type, and get comprehensive route information
+              Select your cities, choose a vehicle, and get a complete trip cost profile.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
+          <CardContent className="p-5 sm:p-6">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_auto]">
 
               <div>
-                <label className="text-sm font-medium mb-2 block">From City</label>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">From</label>
                 <input
                   type="text"
-                  className="h-10 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Type to search departure city"
+                  className="h-12 w-full rounded-lg border border-slate-700 bg-slate-950 px-4 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                  placeholder="Departure city"
                   value={fromCity}
                   onChange={e => setFromCity(e.target.value)}
                   list="from-cities-list"
@@ -1222,11 +1292,11 @@ export default function DistanceTableSystem() {
               </div>
 
               <div>
-                <label className="text-sm font-medium mb-2 block">To City</label>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">To</label>
                 <input
                   type="text"
-                  className="h-10 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Type to search destination city"
+                  className="h-12 w-full rounded-lg border border-slate-700 bg-slate-950 px-4 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                  placeholder="Destination city"
                   value={toCity}
                   onChange={e => setToCity(e.target.value)}
                   list="to-cities-list"
@@ -1240,12 +1310,12 @@ export default function DistanceTableSystem() {
               </div>
 
               <div>
-                <label className="text-sm font-medium mb-2 block">Vehicle Type</label>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Vehicle</label>
                 <Select
                   value={selectedVehicle}
                   onValueChange={(val) => setSelectedVehicle(val as keyof typeof vehicleTypes)}
                 >
-                  <SelectTrigger className="h-10">
+                  <SelectTrigger className="h-12 rounded-lg">
                     <SelectValue placeholder="Select vehicle" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1266,42 +1336,60 @@ export default function DistanceTableSystem() {
               </div>
 
               <div className="flex items-end">
-                <Button onClick={calculateRoute} className="w-full h-10" disabled={!fromCity || !toCity}>
-                  <span className="hidden sm:inline">Calculate Routes</span>
-                  <span className="sm:hidden">Calculate</span>
+                <Button
+                  onClick={calculateRoute}
+                  className="h-12 w-full rounded-lg bg-emerald-600 px-6 font-semibold hover:bg-emerald-700 lg:w-auto"
+                  disabled={!fromCity || !toCity}
+                >
+                  <Route className="mr-2 h-4 w-4" />
+                  Calculate
                 </Button>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3 rounded-lg border border-slate-800 bg-slate-950 p-3 text-sm sm:grid-cols-3">
+              <div className="flex items-center gap-3">
+                <SelectedVehicleIcon className={`h-5 w-5 ${selectedVehicleDetails.color}`} />
+                <div>
+                  <p className="text-xs text-muted-foreground">Vehicle</p>
+                  <p className="font-semibold">{selectedVehicleDetails.name}</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Fuel type</p>
+                <p className="font-semibold capitalize">{selectedVehicleDetails.fuelType}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Efficiency</p>
+                <p className="font-semibold">{selectedVehicleDetails.consumption} km/L</p>
               </div>
             </div>
 
             {/* Route Options */}
             {selectedRoutes.length > 0 && (
               <div className="space-y-4">
-                <div className="flex gap-2 flex-wrap">
+                <div className="flex flex-wrap gap-2 pt-5">
                   {selectedRoutes.map((route, index) => (
                     <Button
                       key={index}
                       variant={activeRouteIndex === index ? "default" : "outline"}
                       size="sm"
                       onClick={() => setActiveRouteIndex(index)}
-                      className="capitalize text-xs sm:text-sm"
+                      className="rounded-full capitalize text-xs sm:text-sm"
                     >
-                      <span className="hidden sm:inline">{route.type} Route</span>
-                      <span className="sm:hidden">{route.type}</span>
-                      {route.type === "scenic" && " 🌄"}
-                      {route.type === "fastest" && " ⚡"}
-                      {route.type === "shortest" && " 📏"}
+                      <span>{route.type} route</span>
                     </Button>
                   ))}
                 </div>
 
                 {activeRoute && (
-                  <Card className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
-                    <CardContent className="pt-4 sm:pt-6">
+                  <Card className="overflow-hidden border-slate-800 bg-slate-900 shadow-xl shadow-black/20">
+                    <CardContent className="p-5 sm:p-6">
                       {/* Route Summary */}
-                      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 text-center mb-4 sm:mb-6">
+                      <div className="mb-5 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
                         <div>
                           <p className="text-xs sm:text-sm text-muted-foreground">Route</p>
-                          <p className="text-sm sm:text-lg font-semibold">
+                          <p className="text-sm font-semibold sm:text-lg">
                             {fromCity} → {toCity}
                           </p>
                           <Badge variant="secondary" className="mt-1 capitalize text-xs">
@@ -1342,7 +1430,7 @@ export default function DistanceTableSystem() {
                       </div>
 
                       <Tabs defaultValue="route" className="w-full">
-                        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 h-auto">
+                        <TabsList className="grid h-auto w-full grid-cols-2 rounded-lg bg-muted p-1 lg:grid-cols-4">
                           <TabsTrigger value="route" className="text-xs sm:text-sm">
                             Route Details
                           </TabsTrigger>
@@ -1363,7 +1451,7 @@ export default function DistanceTableSystem() {
                             segment ? (
                               <div
                                 key={index}
-                                className="flex flex-col sm:flex-row sm:items-center justify-between bg-background/70 rounded-md p-3 gap-2"
+                                className="flex flex-col justify-between gap-3 rounded-lg border bg-background p-4 sm:flex-row sm:items-center"
                               >
                                 <div className="flex items-center gap-2">
                                   <span className="font-medium text-sm">{segment.from}</span>
@@ -1394,7 +1482,7 @@ export default function DistanceTableSystem() {
 
                         <TabsContent value="costs" className="space-y-4 mt-4">
                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                            <Card className="p-3 sm:p-4">
+                            <Card className="border-slate-800 bg-slate-950 p-3 shadow-sm sm:p-4">
                               <div className="flex items-center gap-2 mb-2">
                                 <Fuel className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600 dark:text-orange-400" />
                                 <h4 className="font-medium text-sm sm:text-base">Fuel Costs</h4>
@@ -1412,7 +1500,11 @@ export default function DistanceTableSystem() {
                                 </div>
                                 <div className="flex justify-between">
                                   <span>Price per litre:</span>
-                                  <span>${FUEL_PRICE_USD}</span>
+                                  <span>${getFuelPriceUsd(selectedVehicle).toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Fuel type:</span>
+                                  <span className="capitalize">{vehicleTypes[selectedVehicle].fuelType}</span>
                                 </div>
                                 <div className="flex justify-between font-semibold border-t pt-2">
                                   <span>Total Fuel Cost:</span>
@@ -1421,7 +1513,7 @@ export default function DistanceTableSystem() {
                               </div>
                             </Card>
 
-                            <Card className="p-3 sm:p-4">
+                            <Card className="border-slate-800 bg-slate-950 p-3 shadow-sm sm:p-4">
                               <div className="flex items-center gap-2 mb-2">
                                 <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 dark:text-green-400" />
                                 <h4 className="font-medium text-sm sm:text-base">Total Trip Cost</h4>
@@ -1444,7 +1536,7 @@ export default function DistanceTableSystem() {
                           </div>
 
                           {/* Toll Fee Structure */}
-                          <Card className="p-3 sm:p-4 bg-blue-50 dark:bg-blue-950/20">
+                          <Card className="border-slate-800 bg-slate-950 p-3 shadow-sm sm:p-4">
                             <h4 className="font-medium text-sm sm:text-base mb-3">Zimbabwe Toll Fee Structure</h4>
                             <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 text-xs sm:text-sm">
                               {Object.entries(tollFees).map(([category, fee]) => (
@@ -1468,7 +1560,7 @@ export default function DistanceTableSystem() {
                                 </Badge>
                               </div>
                               {activeRoute.tollInfo?.tollGates?.map((toll, index) => (
-                                <div key={index} className="bg-background/70 rounded-md p-3">
+                                <div key={index} className="rounded-lg border bg-background p-4">
                                   <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
                                     <div>
                                       <h5 className="font-medium text-sm">{toll.name}</h5>
@@ -1495,7 +1587,7 @@ export default function DistanceTableSystem() {
                                   </div>
                                 </div>
                               ))}
-                              <div className="text-right font-semibold text-sm bg-green-50 dark:bg-green-950/20 p-3 rounded-md">
+                              <div className="rounded-lg bg-emerald-950/30 p-4 text-right text-sm font-semibold text-emerald-100">
                                 Total Toll Cost: ${activeRoute.tollInfo?.totalCost !== undefined ? activeRoute.tollInfo.totalCost.toFixed(2) : "-"}
                                 <p className="text-xs text-muted-foreground font-normal">
                                   {activeRoute.tollInfo?.numberOfGates ?? 0} toll gate
@@ -1519,7 +1611,7 @@ export default function DistanceTableSystem() {
                             <>
                               <h4 className="font-medium text-sm sm:text-base">Provincial Border Crossings:</h4>
                               {activeRoute.borderCrossings?.map((crossing, index) => (
-                                <div key={index} className="bg-background/70 rounded-md p-3">
+                                <div key={index} className="rounded-lg border bg-background p-4">
                                   <div className="flex items-center gap-2">
                                     <MapPin className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600 dark:text-blue-400" />
                                     <div>
@@ -1531,10 +1623,10 @@ export default function DistanceTableSystem() {
                                   </div>
                                 </div>
                               ))}
-                              <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-md p-3">
+                              <div className="rounded-md border border-blue-800 bg-blue-950/20 p-3">
                                 <div className="flex items-start gap-2">
                                   <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600 dark:text-blue-400 mt-0.5" />
-                                  <div className="text-xs sm:text-sm text-blue-800 dark:text-blue-200">
+                                  <div className="text-xs text-blue-200 sm:text-sm">
                                     <p className="font-medium">Border Crossing Information:</p>
                                     <p>
                                       Ensure you have proper identification when crossing provincial boundaries. Some
@@ -1560,10 +1652,10 @@ export default function DistanceTableSystem() {
         </Card>
 
         {/* Distance Table */}
-        <Card className="shadow-lg">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg sm:text-xl">Distance Table</CardTitle>
-            <CardDescription className="text-sm">Complete distance table between Zimbabwe cities</CardDescription>
+        <Card className="overflow-hidden border-slate-800 bg-slate-900 shadow-xl shadow-black/20">
+          <CardHeader className="border-b border-slate-800 bg-slate-900 pb-5">
+            <CardTitle className="text-xl sm:text-2xl">Distance Table</CardTitle>
+            <CardDescription className="text-sm">Search the full Zimbabwe route dataset.</CardDescription>
 
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
               <div className="relative flex-1">
@@ -1572,7 +1664,7 @@ export default function DistanceTableSystem() {
                   placeholder="Search cities..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 h-10"
+                  className="h-11 rounded-lg pl-10"
                 />
               </div>
 
@@ -1598,7 +1690,7 @@ export default function DistanceTableSystem() {
                     setFromCity("")
                     setToCity("")
                   }}
-                  className="h-10"
+                  className="h-11 rounded-lg"
                 >
                   <span className="hidden sm:inline">Clear Filters</span>
                   <span className="sm:hidden">Clear</span>
@@ -1608,9 +1700,10 @@ export default function DistanceTableSystem() {
           </CardHeader>
 
           <CardContent>
-            <div className="rounded-md border overflow-x-auto">
+            <div className="overflow-hidden rounded-lg border">
+              <div className="max-h-[520px] overflow-auto">
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-muted">
                   <TableRow>
                     <TableHead className="min-w-[100px]">From</TableHead>
                     <TableHead className="min-w-[100px]">To</TableHead>
@@ -1663,6 +1756,7 @@ export default function DistanceTableSystem() {
                   )}
                 </TableBody>
               </Table>
+              </div>
             </div>
 
             <div className="mt-4 text-xs sm:text-sm text-muted-foreground">
@@ -1672,8 +1766,8 @@ export default function DistanceTableSystem() {
         </Card>
 
         {/* Statistics */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <Card>
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          <Card className="border-slate-800 bg-slate-900 shadow-xl shadow-black/20">
             <CardContent className="pt-4 sm:pt-6">
               <div className="text-center">
                 <p className="text-xl sm:text-2xl font-bold text-blue-600 dark:text-blue-400">{cities.length}</p>
@@ -1682,7 +1776,7 @@ export default function DistanceTableSystem() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-slate-800 bg-slate-900 shadow-xl shadow-black/20">
             <CardContent className="pt-4 sm:pt-6">
               <div className="text-center">
                 <p className="text-xl sm:text-2xl font-bold text-green-600 dark:text-green-400">
@@ -1693,7 +1787,7 @@ export default function DistanceTableSystem() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-slate-800 bg-slate-900 shadow-xl shadow-black/20">
             <CardContent className="pt-4 sm:pt-6">
               <div className="text-center">
                 <p className="text-xl sm:text-2xl font-bold text-purple-600 dark:text-purple-400">
@@ -1704,34 +1798,36 @@ export default function DistanceTableSystem() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-slate-800 bg-slate-900 shadow-xl shadow-black/20">
             <CardContent className="pt-4 sm:pt-6">
               <div className="text-center">
-                <p className="text-xl sm:text-2xl font-bold text-orange-600 dark:text-orange-400">${FUEL_PRICE_USD}</p>
-                <p className="text-xs sm:text-sm text-muted-foreground">Fuel Price/Litre</p>
+                <p className="text-xl sm:text-2xl font-bold text-orange-600 dark:text-orange-400">
+                  ${FUEL_PRICES_USD.petrol.toFixed(2)} / ${FUEL_PRICES_USD.diesel.toFixed(2)}
+                </p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Petrol/Diesel per Litre</p>
               </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Footer */}
-        <footer className="mt-8 sm:mt-12 py-6 sm:py-8 border-t border-border bg-background/50 backdrop-blur-sm rounded-lg">
-          <div className="text-center space-y-2">
-            <div className="flex flex-wrap justify-center gap-4 mb-2">
+        <footer className="flex flex-col gap-3 border-t border-slate-800 py-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-2 sm:contents">
+            <div className="flex flex-wrap gap-4 sm:order-2">
               <Link
                 href="/disclaimer"
-                className="text-xs sm:text-sm text-blue-600 hover:underline"
+                className="hover:text-foreground"
               >
                 Disclaimer
               </Link>
               <Link
                 href="/terms-and-conditions"
-                className="text-xs sm:text-sm text-blue-600 hover:underline"
+                className="hover:text-foreground"
               >
                 Terms & Conditions
               </Link>
             </div>
-            <p className="text-xs sm:text-sm text-muted-foreground">
+            <p className="sm:order-1">
               Copyright © 2025, developed by <span className="font-semibold text-foreground">Onwell Masaraure</span>
             </p>
           </div>
