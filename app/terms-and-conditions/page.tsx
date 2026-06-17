@@ -5,10 +5,10 @@ import { Navigation } from "@/components/navigation";
 
 export default function TermsAndConditions() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-2 sm:p-4">
+    <div className="min-h-screen bg-background">
       <Navigation />
-      <div className="max-w-2xl mx-auto py-10 px-4">
-        <h1 className="text-2xl font-bold mb-4">Terms and Conditions</h1>
+      <div className="max-w-2xl mx-auto py-12 px-4">
+        <h1 className="font-serif text-3xl sm:text-4xl font-semibold mb-4">Terms and Conditions</h1>
         <p className="mb-4 text-sm text-muted-foreground">Last updated: July 29, 2025</p>
         <h2 className="text-lg font-semibold mt-6 mb-2">1. Acceptance of Terms</h2>
         <p className="mb-4">By accessing or using this application, you agree to be bound by these Terms and Conditions. If you do not agree, please do not use the app.</p>
@@ -25,21 +25,21 @@ export default function TermsAndConditions() {
         <h2 className="text-lg font-semibold mt-6 mb-2">7. Changes to Terms</h2>
         <p className="mb-4">We reserve the right to update or change these Terms and Conditions at any time. Continued use of the app after changes constitutes acceptance of those changes.</p>
         <h2 className="text-lg font-semibold mt-6 mb-2">8. Contact</h2>
-        <p className="mb-4">For any questions about these Terms and Conditions, please contact <a href="https://smugsolutions.co.zw/" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">Smug Solutions</a>.</p>
+        <p className="mb-4">For any questions about these Terms and Conditions, please contact <a href="https://smugsolutions.co.zw/" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">Smug Solutions</a>.</p>
       </div>
       {/* Footer */}
-      <footer className="mt-8 sm:mt-12 py-6 sm:py-8 border-t border-border bg-background/50 backdrop-blur-sm rounded-lg">
+      <footer className="mt-8 sm:mt-12 py-6 sm:py-8 border-t border-border">
         <div className="text-center space-y-2">
           <div className="flex flex-wrap justify-center gap-4 mb-2">
             <Link
               href="/disclaimer"
-              className="text-xs sm:text-sm text-blue-600 hover:underline"
+              className="text-xs sm:text-sm text-primary hover:underline"
             >
               Disclaimer
             </Link>
             <Link
               href="/terms-and-conditions"
-              className="text-xs sm:text-sm text-blue-600 hover:underline"
+              className="text-xs sm:text-sm text-primary hover:underline"
             >
               Terms & Conditions
             </Link>
