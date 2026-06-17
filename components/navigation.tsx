@@ -4,7 +4,6 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { MapPin, Home, Phone, Menu, X } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { ThemeToggle } from "./theme-toggle"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
 
@@ -53,12 +52,10 @@ export function Navigation() {
               <Phone className="h-4 w-4" />
               Contact Us
             </Link>
-            <ThemeToggle />
           </div>
 
           {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center gap-2">
-            <ThemeToggle />
             <Button variant="ghost" size="icon" onClick={toggleMobileMenu} className="h-9 w-9">
               {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
               <span className="sr-only">Toggle menu</span>
