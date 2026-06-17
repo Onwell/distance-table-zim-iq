@@ -63,8 +63,8 @@ const vehicleTypes = {
   },
 }
 
-// Current fuel price in USD
-const FUEL_PRICE_USD = 1.45
+// Current fuel price in USD (ZERA regulated, June 2026)
+const FUEL_PRICE_USD = 2.08
 
 // Comprehensive Zimbabwe toll gates with actual locations
 const zimbabweTollGates = [
@@ -1622,10 +1622,10 @@ export default function DistanceTableSystem() {
 
           <CardContent>
             <div className="rounded-xl border border-border/60 overflow-hidden">
-              <div className="overflow-x-auto">
+              <div className="overflow-auto max-h-[480px]">
                 <Table className="border-collapse">
-                  <TableHeader>
-                    <TableRow className="border-0 hover:bg-transparent bg-primary/10">
+                  <TableHeader className="sticky top-0 z-10">
+                    <TableRow className="border-0 hover:bg-transparent bg-secondary [&>th]:bg-secondary">
                       <TableHead className="min-w-[220px] h-12 text-primary font-semibold uppercase tracking-wider text-xs">
                         Route
                       </TableHead>
