@@ -1621,61 +1621,87 @@ export default function DistanceTableSystem() {
           </CardHeader>
 
           <CardContent>
-            <div className="rounded-md border overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="min-w-[100px]">From</TableHead>
-                    <TableHead className="min-w-[100px]">To</TableHead>
-                    <TableHead className="text-right min-w-[80px]">Distance</TableHead>
-                    <TableHead className="text-right min-w-[80px]">Time</TableHead>
-                    <TableHead className="text-right min-w-[100px]">Route Type</TableHead>
-                    <TableHead className="text-right min-w-[100px]">Features</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredData.length > 0 ? (
-                    filteredData.map((item, index) => (
-                      <TableRow key={index} className="hover:bg-muted/50">
-                        <TableCell className="font-medium text-sm">{item.from}</TableCell>
-                        <TableCell className="text-sm">{item.to}</TableCell>
-                        <TableCell className="text-right font-semibold text-sm">{item.distance} km</TableCell>
-                        <TableCell className="text-right text-sm">{item.time}</TableCell>
-                        <TableCell className="text-right">
-                          <Badge variant="secondary" className="capitalize text-xs">
-                            {item.routeType?.replace("_", " ") || "main road"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex gap-1 justify-end flex-wrap">
-                            {item.scenic && (
-                              <Badge variant="outline" className="text-xs">
-                                Scenic
-                              </Badge>
-                            )}
-                            {item.tollGates && item.tollGates.length > 0 && (
-                              <Badge variant="outline" className="text-xs">
-                                {item.tollGates.length} Toll{item.tollGates.length > 1 ? "s" : ""}
-                              </Badge>
-                            )}
-                            {item.alternative && (
-                              <Badge variant="outline" className="text-xs">
-                                Alt
-                              </Badge>
-                            )}
-                          </div>
+            <div className="rounded-xl border border-border/60 overflow-hidden">
+              <div className="overflow-x-auto">
+                <Table className="border-collapse">
+                  <TableHeader>
+                    <TableRow className="border-0 hover:bg-transparent bg-primary/10">
+                      <TableHead className="min-w-[220px] h-12 text-primary font-semibold uppercase tracking-wider text-xs">
+                        Route
+                      </TableHead>
+                      <TableHead className="text-right min-w-[110px] h-12 text-primary font-semibold uppercase tracking-wider text-xs">
+                        Distance
+                      </TableHead>
+                      <TableHead className="text-right min-w-[90px] h-12 text-primary font-semibold uppercase tracking-wider text-xs">
+                        Time
+                      </TableHead>
+                      <TableHead className="text-right min-w-[110px] h-12 text-primary font-semibold uppercase tracking-wider text-xs">
+                        Route Type
+                      </TableHead>
+                      <TableHead className="text-right min-w-[120px] h-12 text-primary font-semibold uppercase tracking-wider text-xs">
+                        Features
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredData.length > 0 ? (
+                      filteredData.map((item, index) => (
+                        <TableRow
+                          key={index}
+                          className="border-0 odd:bg-card even:bg-secondary/30 hover:bg-primary/5 transition-colors"
+                        >
+                          <TableCell className="py-3.5">
+                            <div className="flex items-center gap-2.5">
+                              <span className="h-2 w-2 rounded-full bg-primary/70 shrink-0" />
+                              <span className="font-medium text-sm">{item.from}</span>
+                              <ArrowRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                              <span className="text-sm text-muted-foreground">{item.to}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right py-3.5">
+                            <span className="inline-flex items-center rounded-md bg-primary/10 px-2.5 py-1 font-semibold text-sm text-primary tabular-nums">
+                              {item.distance} km
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right text-sm text-foreground/80 tabular-nums py-3.5">
+                            {item.time}
+                          </TableCell>
+                          <TableCell className="text-right py-3.5">
+                            <Badge variant="secondary" className="capitalize text-xs font-normal">
+                              {item.routeType?.replace("_", " ") || "main road"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right py-3.5">
+                            <div className="flex gap-1 justify-end flex-wrap">
+                              {item.scenic && (
+                                <Badge variant="outline" className="text-xs border-primary/30 text-primary">
+                                  Scenic
+                                </Badge>
+                              )}
+                              {item.tollGates && item.tollGates.length > 0 && (
+                                <Badge variant="outline" className="text-xs border-primary/30 text-primary">
+                                  {item.tollGates.length} Toll{item.tollGates.length > 1 ? "s" : ""}
+                                </Badge>
+                              )}
+                              {item.alternative && (
+                                <Badge variant="outline" className="text-xs">
+                                  Alt
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow className="border-0">
+                        <TableCell colSpan={5} className="text-center py-12 text-muted-foreground text-sm">
+                          No routes found matching your criteria
                         </TableCell>
                       </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground text-sm">
-                        No routes found matching your criteria
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
 
             <div className="mt-4 text-xs sm:text-sm text-muted-foreground">
