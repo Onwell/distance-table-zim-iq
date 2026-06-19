@@ -1,8 +1,7 @@
-
 "use client"
-import Link from "next/link";
 
-import { useState, useMemo } from "react"
+import Link from "next/link"
+import { useState, useMemo, useCallback } from "react"
 import { Search, Route, ArrowRight, Fuel, Car, Truck, Bus, Bike, MapPin, DollarSign, TriangleAlert as AlertTriangle } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -12,966 +11,48 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Navigation } from "@/components/navigation"
+import {
+  tollFees,
+  vehicleTypes,
+  FUEL_PRICE_USD,
+  zimbabweTollGates,
+  distanceData,
+  cities,
+  provincialBoundaries,
+  findTollGatesOnSegment,
+  type TollGate,
+  type DistanceRoute,
+} from "@/lib/distance-data"
 
-// Updated toll fees by vehicle type
-const tollFees = {
-  motorcycle: 0.0,
-  car: 4.0,
-  minibus: 6.0,
-  bus: 8.0,
-  truck: 10.0,
-  haulage: 20.0,
-}
-
-// Vehicle types with fuel consumption (km per litre) and toll category
-const vehicleTypes = {
-  car: {
-    name: "Light Motor Vehicle",
-    icon: Car,
-    consumption: 12,
-    color: "text-primary",
-    tollCategory: "car",
-  },
-  motorcycle: {
-    name: "Motor Cycle",
-    icon: Bike,
-    consumption: 25,
-    color: "text-primary",
-    tollCategory: "motorcycle",
-  },
-  minibus: {
-    name: "MiniBus",
-    icon: Bus,
-    consumption: 8,
-    color: "text-primary",
-    tollCategory: "minibus",
-  },
-  bus: { name: "Bus", icon: Bus, consumption: 4, color: "text-primary", tollCategory: "bus" },
-  truck: {
-    name: "Heavy Vehicle",
-    icon: Truck,
-    consumption: 3,
-    color: "text-primary",
-    tollCategory: "truck",
-  },
-  haulage: {
-    name: "Haulage Truck",
-    icon: Truck,
-    consumption: 2.5,
-    color: "text-primary",
-    tollCategory: "haulage",
-  },
-}
-
-// Current fuel price in USD (ZERA regulated, June 2026)
-const FUEL_PRICE_USD = 2.08
-
-// Comprehensive Zimbabwe toll gates with actual locations
-const zimbabweTollGates = [
-  // A1 Highway (Harare-Banket)
-  {
-    id: "inkomo_toll",
-    name: "Inkomo Toll Plaza",
-    location: "A1 Highway, Inkomo (Harare-Chirundu Road)",
-    highway: "A1",
-    coordinates: { lat: -17.6833, lng: 30.7667 },
-    kmFromHarare: 40,
-    serves: ["Harare-Banket", "Banket-Harare", "Harare-Chirundu"],
-  },
-  // A1 Highway (Harare-Chirundu)
-  {
-    id: "makuti_toll",
-    name: "Makuti Toll Plaza",
-    location: "A1 Highway, Makuti",
-    highway: "A1",
-    coordinates: { lat: -16.0833, lng: 29.3833 },
-    kmFromHarare: 180,
-    serves: ["Harare-Chirundu", "Harare-Kariba"],
-  },
-
-  // A2 Highway (Harare-Nyamapanda)
-  {
-    id: "marondera_toll",
-    name: "Marondera Toll Plaza",
-    location: "A2 Highway, Marondera",
-    highway: "A2",
-    coordinates: { lat: -18.1833, lng: 31.55 },
-    kmFromHarare: 75,
-    serves: ["Harare-Nyamapanda", "Harare-Mutoko"],
-  },
-
-  // A3 Highway (Harare-Mutare)
-  {
-    id: "rusape_toll",
-    name: "Rusape Toll Plaza",
-    location: "A3 Highway, Rusape",
-    highway: "A3",
-    coordinates: { lat: -18.5276, lng: 32.1255 },
-    kmFromHarare: 170,
-    serves: ["Harare-Mutare", "Harare-Chipinge"],
-  },
-
-  // A4 Highway (Harare-Beitbridge)
-  {
-    id: "mvuma_toll",
-    name: "Mvuma Toll Plaza",
-    location: "A4 Highway, Mvuma",
-    highway: "A4",
-    coordinates: { lat: -19.2833, lng: 30.5333 },
-    kmFromHarare: 220,
-    serves: ["Harare-Masvingo", "Harare-Beitbridge"],
-  },
-  {
-    id: "masvingo_toll",
-    name: "Masvingo Toll Plaza",
-    location: "A4 Highway, Masvingo South",
-    highway: "A4",
-    coordinates: { lat: -20.0833, lng: 30.8333 },
-    kmFromHarare: 292,
-    serves: ["Masvingo-Beitbridge", "Masvingo-Triangle"],
-  },
-  {
-    id: "beitbridge_toll",
-    name: "Beitbridge Toll Plaza",
-    location: "A4 Highway, Beitbridge North",
-    highway: "A4",
-    coordinates: { lat: -22.2167, lng: 30.0 },
-    kmFromHarare: 572,
-    serves: ["Beitbridge Border", "South Africa Border"],
-  },
-
-  // A5 Highway (Harare-Bulawayo)
-  {
-    id: "chegutu_toll",
-    name: "Chegutu Toll Plaza",
-    location: "A5 Highway, Chegutu",
-    highway: "A5",
-    coordinates: { lat: -18.1348, lng: 30.1435 },
-    kmFromHarare: 110,
-    serves: ["Harare-Bulawayo", "Harare-Kadoma"],
-  },
-  {
-    id: "kwekwe_toll",
-    name: "Kwekwe Toll Plaza",
-    location: "A5 Highway, Kwekwe",
-    highway: "A5",
-    coordinates: { lat: -18.9167, lng: 29.8167 },
-    kmFromHarare: 207,
-    serves: ["Harare-Gweru", "Kwekwe-Redcliff"],
-  },
-  {
-    id: "gweru_toll",
-    name: "Gweru Toll Plaza",
-    location: "A5 Highway, Gweru East",
-    highway: "A5",
-    coordinates: { lat: -19.45, lng: 29.8167 },
-    kmFromHarare: 274,
-    serves: ["Gweru-Bulawayo", "Gweru-Shurugwi"],
-  },
-  {
-    id: "shangani_toll",
-    name: "Shangani Toll Plaza",
-    location: "A5 Highway, Shangani",
-    highway: "A5",
-    coordinates: { lat: -19.7833, lng: 29.3667 },
-    kmFromHarare: 350,
-    serves: ["Gweru-Bulawayo", "Shangani-Zvishavane"],
-  },
-
-  // A6 Highway (Bulawayo-Francistown)
-  {
-    id: "plumtree_toll",
-    name: "Plumtree Toll Plaza",
-    location: "A6 Highway, Plumtree",
-    highway: "A6",
-    coordinates: { lat: -20.4833, lng: 27.8167 },
-    kmFromBulawayo: 100,
-    serves: ["Bulawayo-Plumtree", "Botswana Border"],
-  },
-
-  // A7 Highway (Bulawayo-Beitbridge)
-  {
-    id: "gwanda_toll",
-    name: "Gwanda Toll Plaza",
-    location: "A7 Highway, Gwanda",
-    highway: "A7",
-    coordinates: { lat: -20.9333, lng: 29.0 },
-    kmFromBulawayo: 126,
-    serves: ["Bulawayo-Gwanda", "Gwanda-Beitbridge"],
-  },
-  {
-    id: "west_nicholson_toll",
-    name: "West Nicholson Toll Plaza",
-    location: "A7 Highway, West Nicholson",
-    highway: "A7",
-    coordinates: { lat: -21.6167, lng: 29.0333 },
-    kmFromBulawayo: 198,
-    serves: ["Gwanda-Beitbridge", "West Nicholson-Rutenga"],
-  },
-
-  // A8 Highway (Bulawayo-Victoria Falls)
-  {
-    id: "hwange_toll",
-    name: "Hwange Toll Plaza",
-    location: "A8 Highway, Hwange",
-    highway: "A8",
-    coordinates: { lat: -18.3667, lng: 26.5 },
-    kmFromBulawayo: 296,
-    serves: ["Bulawayo-Hwange", "Hwange-Victoria Falls"],
-  },
-  {
-    id: "victoria_falls_toll",
-    name: "Victoria Falls Toll Plaza",
-    location: "A8 Highway, Victoria Falls",
-    highway: "A8",
-    coordinates: { lat: -17.9333, lng: 25.8167 },
-    kmFromBulawayo: 440,
-    serves: ["Victoria Falls", "Zambia Border"],
-  },
-
-  // Additional Regional Toll Gates
-  {
-    id: "chinhoyi_toll",
-    name: "Chinhoyi Toll Plaza",
-    location: "Chinhoyi-Karoi Road",
-    highway: "Regional",
-    coordinates: { lat: -17.3667, lng: 30.2 },
-    kmFromHarare: 116,
-    serves: ["Harare-Chinhoyi", "Chinhoyi-Karoi"],
-  },
-  {
-    id: "mutoko_toll",
-    name: "Mutoko Toll Plaza",
-    location: "A2 Highway, Mutoko",
-    highway: "A2",
-    coordinates: { lat: -17.3967, lng: 32.2267 },
-    kmFromHarare: 143,
-    serves: ["Harare-Mutoko", "Mutoko-Nyamapanda"],
-  },
-  {
-    id: "chipinge_toll",
-    name: "Chipinge Toll Plaza",
-    location: "Chipinge-Triangle Road",
-    highway: "Regional",
-    coordinates: { lat: -20.1833, lng: 32.6167 },
-    kmFromMutare: 131,
-    serves: ["Mutare-Chipinge", "Chipinge-Triangle"],
-  },
-]
-
-// Function to find toll gates on a specific route segment
-type TollGate = typeof zimbabweTollGates[number];
-type DistanceRoute = {
-  from: string;
-  to: string;
-  distance: number;
-  time: string;
-  routeType: string;
-  scenic: boolean;
-  tollGates: string[] | TollGate[];
-  alternative?: boolean;
-};
-
-const findTollGatesOnSegment = (fromCity: string, toCity: string, distance: number): TollGate[] => {
-  const routeTollGates: TollGate[] = []
-
-  // Define route mappings to toll gates
-  const routeMappings: Record<string, string[]> = {
-    // A1 Routes
-    "Harare-Chirundu": ["makuti_toll"],
-    "Harare-Kariba": ["makuti_toll"],
-
-    // A2 Routes
-    "Harare-Mutoko": ["marondera_toll", "mutoko_toll"],
-    "Harare-Nyamapanda": ["marondera_toll", "mutoko_toll"],
-    "Marondera-Mutoko": ["mutoko_toll"],
-
-    // A3 Routes
-    "Harare-Mutare": ["rusape_toll"],
-    "Harare-Rusape": ["rusape_toll"],
-    "Mutare-Chipinge": ["chipinge_toll"],
-
-    // A4 Routes
-    "Harare-Masvingo": ["mvuma_toll"],
-    "Harare-Beitbridge": ["mvuma_toll", "masvingo_toll", "beitbridge_toll"],
-    "Masvingo-Beitbridge": ["masvingo_toll", "beitbridge_toll"],
-    "Masvingo-Triangle": ["masvingo_toll"],
-
-    // A5 Routes
-    "Harare-Chegutu": ["chegutu_toll"],
-    "Harare-Kadoma": ["chegutu_toll"],
-    "Harare-Kwekwe": ["chegutu_toll", "kwekwe_toll"],
-    "Harare-Gweru": ["chegutu_toll", "kwekwe_toll", "gweru_toll"],
-    "Harare-Bulawayo": ["chegutu_toll", "kwekwe_toll", "gweru_toll", "shangani_toll"],
-    "Gweru-Bulawayo": ["gweru_toll", "shangani_toll"],
-    "Kwekwe-Gweru": ["kwekwe_toll", "gweru_toll"],
-
-    // A6 Routes
-    "Bulawayo-Plumtree": ["plumtree_toll"],
-
-    // A7 Routes
-    "Bulawayo-Gwanda": ["gwanda_toll"],
-    "Bulawayo-Beitbridge": ["gwanda_toll", "west_nicholson_toll"],
-    "Gwanda-Beitbridge": ["west_nicholson_toll"],
-
-    // A8 Routes
-    "Bulawayo-Hwange": ["hwange_toll"],
-    "Bulawayo-Victoria Falls": ["hwange_toll", "victoria_falls_toll"],
-    "Hwange-Victoria Falls": ["victoria_falls_toll"],
-
-    // Regional Routes
-    "Harare-Chinhoyi": ["chinhoyi_toll"],
-  }
-
-  // Check both directions
-  const routeKey1 = `${fromCity}-${toCity}`
-  const routeKey2 = `${toCity}-${fromCity}`
-  const tollGateIds: string[] = routeMappings[routeKey1] || routeMappings[routeKey2] || []
-
-  // Get toll gate details
-  tollGateIds.forEach((tollId: string) => {
-    const tollGate = zimbabweTollGates.find((tg) => tg.id === tollId)
-    if (tollGate) {
-      routeTollGates.push(tollGate)
-    }
-  })
-
-  return routeTollGates
-}
-
-// Updated toll gates information with real Zimbabwe locations
-const tollGates = [
-  {
-    name: "Harare-Bulawayo Toll",
-    location: "A5 Highway (Chegutu)",
-    routes: ["Harare-Bulawayo", "Harare-Gweru"],
-    kmFromHarare: 110,
-    coordinates: { lat: -18.1348, lng: 30.1435 },
-  },
-  {
-    name: "Mutare Toll Plaza",
-    location: "A3 Highway (Rusape)",
-    routes: ["Harare-Mutare", "Marondera-Mutare"],
-    kmFromHarare: 170,
-    coordinates: { lat: -18.5276, lng: 32.1255 },
-  },
-  {
-    name: "Beitbridge Toll",
-    location: "A4 Highway (Masvingo South)",
-    routes: ["Masvingo-Beitbridge", "Bulawayo-Beitbridge"],
-    kmFromHarare: 350,
-    coordinates: { lat: -20.1833, lng: 30.6167 },
-  },
-  {
-    name: "Victoria Falls Toll",
-    location: "A8 Highway (Hwange)",
-    routes: ["Bulawayo-Victoria Falls"],
-    kmFromHarare: 600,
-    coordinates: { lat: -18.1076, lng: 25.8563 },
-  },
-  {
-    name: "Gweru Toll Plaza",
-    location: "A5 Highway (Gweru East)",
-    routes: ["Harare-Gweru", "Gweru-Bulawayo"],
-    kmFromHarare: 274,
-    coordinates: { lat: -19.45, lng: 29.8167 },
-  },
-]
-
-// Provincial boundaries
-const provincialBoundaries = [
-  { from: "Harare Province", to: "Mashonaland West", cities: ["Harare", "Chinhoyi"] },
-  { from: "Harare Province", to: "Manicaland", cities: ["Harare", "Mutare"] },
-  { from: "Harare Province", to: "Midlands", cities: ["Harare", "Gweru"] },
-  { from: "Midlands", to: "Matabeleland South", cities: ["Gweru", "Bulawayo"] },
-  { from: "Matabeleland South", to: "Matabeleland North", cities: ["Bulawayo", "Victoria Falls"] },
-  { from: "Midlands", to: "Masvingo", cities: ["Gweru", "Masvingo"] },
-  { from: "Masvingo", to: "Matabeleland South", cities: ["Masvingo", "Beitbridge"] },
-]
-
-// Expanded distance data with route types and toll information
-const distanceData: DistanceRoute[] = [
-  // Harare to Karoi and vice versa
-  {
-    from: "Harare",
-    to: "Karoi",
-    distance: 205,
-    time: "2h 30m",
-    routeType: "main_road",
-    scenic: false,
-    tollGates: ["Inkomo Toll Plaza", "Chinhoyi Toll Plaza"],
-  },
-  {
-    from: "Karoi",
-    to: "Harare",
-    distance: 205,
-    time: "2h 30m",
-    routeType: "main_road",
-    scenic: false,
-    tollGates: ["Chinhoyi Toll Plaza", "Inkomo Toll Plaza"],
-  },
-  // Karoi to Chinhoyi and vice versa (if not present)
-  {
-    from: "Chinhoyi",
-    to: "Karoi",
-    distance: 89,
-    time: "1h 10m",
-    routeType: "main_road",
-    scenic: false,
-    tollGates: ["Chinhoyi Toll Plaza"],
-  },
-  {
-    from: "Karoi",
-    to: "Chinhoyi",
-    distance: 89,
-    time: "1h 10m",
-    routeType: "main_road",
-    scenic: false,
-    tollGates: ["Chinhoyi Toll Plaza"],
-  },
-  // Kariba to Karoi and vice versa
-  {
-    from: "Kariba",
-    to: "Karoi",
-    distance: 153,
-    time: "2h 00m",
-    routeType: "main_road",
-    scenic: true,
-    tollGates: [],
-  },
-  {
-    from: "Karoi",
-    to: "Kariba",
-    distance: 153,
-    time: "2h 00m",
-    routeType: "main_road",
-    scenic: true,
-    tollGates: [],
-  },
-  // Chinhoyi-Banket correct distance
-  {
-    from: "Chinhoyi",
-    to: "Banket",
-    distance: 23.9,
-    time: "0h 20m",
-    routeType: "main_road",
-    scenic: false,
-    tollGates: [],
-  },
-  {
-    from: "Banket",
-    to: "Chinhoyi",
-    distance: 23.9,
-    time: "0h 20m",
-    routeType: "main_road",
-    scenic: false,
-    tollGates: [],
-  },
-  // Major highways with route types
-  {
-    from: "Harare",
-    to: "Banket",
-    distance: 95,
-    time: "1h 15m",
-    routeType: "main_road",
-    scenic: false,
-    tollGates: ["Inkomo Toll Plaza"],
-  },
-  {
-    from: "Banket",
-    to: "Harare",
-    distance: 95,
-    time: "1h 15m",
-    routeType: "main_road",
-    scenic: false,
-    tollGates: ["Inkomo Toll Plaza"],
-  },
-  {
-    from: "Harare",
-    to: "Kariba",
-    distance: 365,
-    time: "5h 30m",
-    routeType: "main_road",
-    scenic: true,
-    tollGates: ["Makuti Toll Plaza"],
-  },
-  {
-    from: "Kariba",
-    to: "Harare",
-    distance: 365,
-    time: "5h 30m",
-    routeType: "main_road",
-    scenic: true,
-    tollGates: ["Makuti Toll Plaza"],
-  },
-  {
-    from: "Harare",
-    to: "Bulawayo",
-    distance: 439,
-    time: "4h 30m",
-    routeType: "highway",
-    scenic: false,
-    tollGates: ["Harare-Bulawayo Toll", "Gweru Toll Plaza"],
-  },
-  {
-    from: "Harare",
-    to: "Mutare",
-    distance: 263,
-    time: "3h 15m",
-    routeType: "highway",
-    scenic: true,
-    tollGates: ["Mutare Toll Plaza"],
-  },
-  {
-    from: "Harare",
-    to: "Gweru",
-    distance: 274,
-    time: "3h 00m",
-    routeType: "highway",
-    scenic: false,
-    tollGates: ["Harare-Bulawayo Toll", "Gweru Toll Plaza"],
-  },
-  {
-    from: "Harare",
-    to: "Masvingo",
-    distance: 292,
-    time: "3h 30m",
-    routeType: "main_road",
-    scenic: false,
-    tollGates: [],
-  },
-  {
-    from: "Harare",
-    to: "Chinhoyi",
-    distance: 116,
-    time: "1h 30m",
-    routeType: "main_road",
-    scenic: false,
-    tollGates: [],
-  },
-  { from: "Harare", to: "Kadoma", distance: 140, time: "1h 45m", routeType: "main_road", scenic: false, tollGates: [] },
-  {
-    from: "Harare",
-    to: "Chegutu",
-    distance: 110,
-    time: "1h 20m",
-    routeType: "main_road",
-    scenic: false,
-    tollGates: ["Harare-Bulawayo Toll"],
-  },
-  { from: "Harare", to: "Bindura", distance: 88, time: "1h 10m", routeType: "secondary", scenic: false, tollGates: [] },
-  {
-    from: "Harare",
-    to: "Marondera",
-    distance: 75,
-    time: "1h 00m",
-    routeType: "main_road",
-    scenic: false,
-    tollGates: [],
-  },
-  { from: "Harare", to: "Chitungwiza", distance: 25, time: "0h 30m", routeType: "urban", scenic: false, tollGates: [] },
-  { from: "Harare", to: "Norton", distance: 40, time: "0h 40m", routeType: "main_road", scenic: false, tollGates: [] },
-  {
-    from: "Harare",
-    to: "Rusape",
-    distance: 170,
-    time: "2h 10m",
-    routeType: "secondary",
-    scenic: true,
-    tollGates: ["Mutare Toll Plaza"],
-  },
-
-  // Alternative routes (scenic/longer options)
-  {
-    from: "Harare",
-    to: "Mutare",
-    distance: 285,
-    time: "3h 45m",
-    routeType: "scenic",
-    scenic: true,
-    tollGates: [],
-    alternative: true,
-  },
-  {
-    from: "Harare",
-    to: "Bulawayo",
-    distance: 465,
-    time: "5h 15m",
-    routeType: "scenic",
-    scenic: true,
-    tollGates: [],
-    alternative: true,
-  },
-
-  // Bulawayo connections
-  {
-    from: "Bulawayo",
-    to: "Mutare",
-    distance: 518,
-    time: "5h 45m",
-    routeType: "main_road",
-    scenic: false,
-    tollGates: [],
-  },
-  {
-    from: "Bulawayo",
-    to: "Gweru",
-    distance: 165,
-    time: "2h 00m",
-    routeType: "highway",
-    scenic: false,
-    tollGates: ["Gweru Toll Plaza"],
-  },
-  {
-    from: "Bulawayo",
-    to: "Masvingo",
-    distance: 284,
-    time: "3h 15m",
-    routeType: "main_road",
-    scenic: false,
-    tollGates: [],
-  },
-  {
-    from: "Bulawayo",
-    to: "Victoria Falls",
-    distance: 440,
-    time: "4h 30m",
-    routeType: "highway",
-    scenic: true,
-    tollGates: ["Victoria Falls Toll"],
-  },
-  {
-    from: "Bulawayo",
-    to: "Hwange",
-    distance: 296,
-    time: "3h 30m",
-    routeType: "main_road",
-    scenic: false,
-    tollGates: [],
-  },
-  {
-    from: "Bulawayo",
-    to: "Plumtree",
-    distance: 100,
-    time: "1h 20m",
-    routeType: "main_road",
-    scenic: false,
-    tollGates: [],
-  },
-  {
-    from: "Bulawayo",
-    to: "Gwanda",
-    distance: 126,
-    time: "1h 30m",
-    routeType: "main_road",
-    scenic: false,
-    tollGates: [],
-  },
-  {
-    from: "Bulawayo",
-    to: "Beitbridge",
-    distance: 322,
-    time: "3h 45m",
-    routeType: "highway",
-    scenic: false,
-    tollGates: ["Beitbridge Toll"],
-  },
-  {
-    from: "Bulawayo",
-    to: "Zvishavane",
-    distance: 185,
-    time: "2h 15m",
-    routeType: "secondary",
-    scenic: false,
-    tollGates: [],
-  },
-
-  // Mutare connections
-  { from: "Mutare", to: "Gweru", distance: 353, time: "4h 00m", routeType: "main_road", scenic: false, tollGates: [] },
-  {
-    from: "Mutare",
-    to: "Masvingo",
-    distance: 271,
-    time: "3h 15m",
-    routeType: "main_road",
-    scenic: false,
-    tollGates: [],
-  },
-  {
-    from: "Mutare",
-    to: "Chipinge",
-    distance: 131,
-    time: "1h 45m",
-    routeType: "secondary",
-    scenic: true,
-    tollGates: [],
-  },
-  { from: "Mutare", to: "Rusape", distance: 93, time: "1h 15m", routeType: "secondary", scenic: true, tollGates: [] },
-  { from: "Mutare", to: "Nyanga", distance: 115, time: "1h 30m", routeType: "secondary", scenic: true, tollGates: [] },
-
-  // Other connections with route information
-  {
-    from: "Gweru",
-    to: "Masvingo",
-    distance: 157,
-    time: "2h 00m",
-    routeType: "main_road",
-    scenic: false,
-    tollGates: [],
-  },
-  { from: "Gweru", to: "Kadoma", distance: 134, time: "1h 40m", routeType: "main_road", scenic: false, tollGates: [] },
-  { from: "Gweru", to: "Kwekwe", distance: 67, time: "0h 50m", routeType: "main_road", scenic: false, tollGates: [] },
-  { from: "Gweru", to: "Shurugwi", distance: 35, time: "0h 30m", routeType: "secondary", scenic: false, tollGates: [] },
-  {
-    from: "Gweru",
-    to: "Zvishavane",
-    distance: 120,
-    time: "1h 30m",
-    routeType: "secondary",
-    scenic: false,
-    tollGates: [],
-  },
-
-  {
-    from: "Masvingo",
-    to: "Chiredzi",
-    distance: 166,
-    time: "2h 15m",
-    routeType: "main_road",
-    scenic: false,
-    tollGates: [],
-  },
-  {
-    from: "Masvingo",
-    to: "Beitbridge",
-    distance: 288,
-    time: "3h 30m",
-    routeType: "highway",
-    scenic: false,
-    tollGates: ["Beitbridge Toll"],
-  },
-  {
-    from: "Masvingo",
-    to: "Zvishavane",
-    distance: 96,
-    time: "1h 15m",
-    routeType: "secondary",
-    scenic: false,
-    tollGates: [],
-  },
-  {
-    from: "Masvingo",
-    to: "Triangle",
-    distance: 140,
-    time: "1h 50m",
-    routeType: "secondary",
-    scenic: false,
-    tollGates: [],
-  },
-
-  // Additional connections
-  {
-    from: "Victoria Falls",
-    to: "Hwange",
-    distance: 144,
-    time: "1h 50m",
-    routeType: "main_road",
-    scenic: true,
-    tollGates: [],
-  },
-  {
-    from: "Chinhoyi",
-    to: "Kadoma",
-    distance: 89,
-    time: "1h 10m",
-    routeType: "main_road",
-    scenic: false,
-    tollGates: [],
-  },
-  { from: "Chegutu", to: "Kadoma", distance: 30, time: "0h 25m", routeType: "main_road", scenic: false, tollGates: [] },
-  { from: "Chegutu", to: "Norton", distance: 70, time: "0h 55m", routeType: "main_road", scenic: false, tollGates: [] },
-  { from: "Norton", to: "Chegutu", distance: 70, time: "0h 55m", routeType: "main_road", scenic: false, tollGates: [] },
-  { from: "Kwekwe", to: "Kadoma", distance: 67, time: "0h 50m", routeType: "main_road", scenic: false, tollGates: [] },
-  { from: "Kwekwe", to: "Redcliff", distance: 15, time: "0h 15m", routeType: "urban", scenic: false, tollGates: [] },
-  { from: "Bindura", to: "Shamva", distance: 29, time: "0h 30m", routeType: "secondary", scenic: false, tollGates: [] },
-  {
-    from: "Bindura",
-    to: "Mt Darwin",
-    distance: 118,
-    time: "1h 30m",
-    routeType: "secondary",
-    scenic: false,
-    tollGates: [],
-  },
-  {
-    from: "Marondera",
-    to: "Rusape",
-    distance: 95,
-    time: "1h 10m",
-    routeType: "secondary",
-    scenic: true,
-    tollGates: [],
-  },
-  {
-    from: "Marondera",
-    to: "Macheke",
-    distance: 40,
-    time: "0h 35m",
-    routeType: "secondary",
-    scenic: false,
-    tollGates: [],
-  },
-  { from: "Rusape", to: "Nyanga", distance: 98, time: "1h 15m", routeType: "secondary", scenic: true, tollGates: [] },
-  {
-    from: "Beitbridge",
-    to: "Gwanda",
-    distance: 196,
-    time: "2h 15m",
-    routeType: "main_road",
-    scenic: false,
-    tollGates: [],
-  },
-  {
-    from: "Gwanda",
-    to: "West Nicholson",
-    distance: 72,
-    time: "0h 55m",
-    routeType: "secondary",
-    scenic: false,
-    tollGates: [],
-  },
-  {
-    from: "Chiredzi",
-    to: "Triangle",
-    distance: 26,
-    time: "0h 25m",
-    routeType: "secondary",
-    scenic: false,
-    tollGates: [],
-  },
-  {
-    from: "Chiredzi",
-    to: "Chipinge",
-    distance: 185,
-    time: "2h 20m",
-    routeType: "secondary",
-    scenic: false,
-    tollGates: [],
-  },
-  {
-    from: "Nyanga",
-    to: "Juliasdale",
-    distance: 20,
-    time: "0h 20m",
-    routeType: "secondary",
-    scenic: true,
-    tollGates: [],
-  },
-  {
-    from: "Zvishavane",
-    to: "Shurugwi",
-    distance: 85,
-    time: "1h 00m",
-    routeType: "secondary",
-    scenic: false,
-    tollGates: [],
-  },
-]
-
-const cities: string[] = Array.from(new Set([...distanceData.map((d) => d.from), ...distanceData.map((d) => d.to)])).sort()
+// Vehicle icons map
+const vehicleIcons = { car: Car, motorcycle: Bike, minibus: Bus, bus: Bus, truck: Truck, haulage: Truck }
 
 // Build graph for route finding
-type Graph = Map<string, Array<{
-  city: string;
-  distance: number;
-  time: string;
-  routeType: string;
-  scenic: boolean;
-  tollGates: string[] | TollGate[];
-  alternative: boolean;
-}>>;
-const buildGraph = (): Graph => {
+type GraphEdge = { city: string; distance: number; time: string; routeType: string; scenic: boolean; tollGates: string[]; alternative: boolean }
+type Graph = Map<string, GraphEdge[]>
+type RouteResult = {
+  type: string
+  path: string[]
+  segments?: Array<{ from: string; to: string; distance: number; time: string; routeType: string; scenic: boolean; tollGates: TollGate[] }>
+  totalDistance?: number
+  totalTime?: string
+  fuelCost?: number
+  tollInfo?: { tollGates: Array<TollGate & { cost: number }>; totalCost: number; numberOfGates: number }
+  borderCrossings?: Array<{ from: string; to: string; location: string }>
+}
+
+function buildGraph(): Graph {
   const graph: Graph = new Map()
   distanceData.forEach((route) => {
-    if (!graph.has(route.from)) {
-      graph.set(route.from, [])
-    }
-    if (!graph.has(route.to)) {
-      graph.set(route.to, [])
-    }
-    graph.get(route.from)!.push({
-      city: route.to,
-      distance: route.distance,
-      time: route.time,
-      routeType: route.routeType,
-      scenic: route.scenic,
-      tollGates: route.tollGates || [],
-      alternative: route.alternative || false,
-    })
-    graph.get(route.to)!.push({
-      city: route.from,
-      distance: route.distance,
-      time: route.time,
-      routeType: route.routeType,
-      scenic: route.scenic,
-      tollGates: route.tollGates || [],
-      alternative: route.alternative || false,
-    })
+    if (!graph.has(route.from)) graph.set(route.from, [])
+    if (!graph.has(route.to)) graph.set(route.to, [])
+    graph.get(route.from)!.push({ city: route.to, distance: route.distance, time: route.time, routeType: route.routeType, scenic: route.scenic, tollGates: route.tollGates || [], alternative: route.alternative || false })
+    graph.get(route.to)!.push({ city: route.from, distance: route.distance, time: route.time, routeType: route.routeType, scenic: route.scenic, tollGates: route.tollGates || [], alternative: route.alternative || false })
   })
   return graph
 }
 
-// Calculate real-time number of toll gates based on distance and route
-const calculateTollGatesForRoute = (segments: Array<{ tollGates: TollGate[] }>): TollGate[] => {
-  const uniqueTollGates = new Map<string, TollGate>()
-  segments.forEach((segment) => {
-    if (segment.tollGates && segment.tollGates.length > 0) {
-      (segment.tollGates as TollGate[]).forEach((tollGate) => {
-        uniqueTollGates.set(tollGate.id, tollGate)
-      })
-    }
-  })
-  return Array.from(uniqueTollGates.values())
-}
-
-// Find multiple routes (shortest, fastest, scenic)
-type RouteResult = {
-  type: string;
-  path: string[];
-  priority: number;
-  segments?: Array<ReturnType<typeof getRouteDetails>>;
-  totalDistance?: number;
-  totalTime?: string;
-  fuelCost?: number;
-  tollInfo?: ReturnType<typeof calculateTollCosts>;
-  borderCrossings?: Array<{ from: string; to: string; location: string }>;
-};
-const findMultipleRoutes = (graph: Graph, start: string, end: string): RouteResult[] => {
-  const routes: RouteResult[] = []
-
-  // Find shortest distance route
-  const shortestRoute = findShortestPath(graph, start, end, "distance")
-  if (shortestRoute.length > 0) {
-    routes.push({ type: "shortest", path: shortestRoute, priority: 1 })
-  }
-
-  // Find fastest route (least time)
-  const fastestRoute = findShortestPath(graph, start, end, "time")
-  if (fastestRoute.length > 0 && JSON.stringify(fastestRoute) !== JSON.stringify(shortestRoute)) {
-    routes.push({ type: "fastest", path: fastestRoute, priority: 2 })
-  }
-
-  // Find scenic route
-  const scenicRoute = findScenicRoute(graph, start, end)
-  if (scenicRoute.length > 0) {
-    routes.push({ type: "scenic", path: scenicRoute, priority: 3 })
-  }
-
-  return routes
-}
-
-// Modified Dijkstra's algorithm
-const findShortestPath = (graph: Graph, start: string, end: string, optimizeFor = "distance"): string[] => {
+function findShortestPath(graph: Graph, start: string, end: string, optimizeFor = "distance"): string[] {
   const distances = new Map<string, number>()
   const previous = new Map<string, string>()
   const unvisited = new Set<string>()
@@ -1018,127 +99,105 @@ const findShortestPath = (graph: Graph, start: string, end: string, optimizeFor 
   return path
 }
 
-// Find scenic route (prioritize scenic roads)
-const findScenicRoute = (graph: Graph, start: string, end: string): string[] => {
+function findScenicRoute(graph: Graph, start: string, end: string): string[] {
   const allRoutes = distanceData.filter((route) => route.scenic)
   const scenicCities = new Set<string>()
   allRoutes.forEach((route) => {
     scenicCities.add(route.from)
     scenicCities.add(route.to)
   })
-  if (scenicCities.has(start) || scenicCities.has(end)) {
-    return findShortestPath(graph, start, end, "distance")
-  }
+  if (scenicCities.has(start) || scenicCities.has(end)) return findShortestPath(graph, start, end, "distance")
   return []
 }
 
-// Update the getRouteDetails function to include actual toll gates
-const getRouteDetails = (from: string, to: string) => {
-  const route = distanceData.find(
-    (route) => (route.from === from && route.to === to) || (route.from === to && route.to === from),
-  )
+function findMultipleRoutes(graph: Graph, start: string, end: string): RouteResult[] {
+  const routes: RouteResult[] = []
+  const shortestRoute = findShortestPath(graph, start, end, "distance")
+  if (shortestRoute.length > 0) routes.push({ type: "shortest", path: shortestRoute, priority: 1 })
+  const fastestRoute = findShortestPath(graph, start, end, "time")
+  if (fastestRoute.length > 0 && JSON.stringify(fastestRoute) !== JSON.stringify(shortestRoute)) routes.push({ type: "fastest", path: fastestRoute, priority: 2 })
+  const scenicRoute = findScenicRoute(graph, start, end)
+  if (scenicRoute.length > 0) routes.push({ type: "scenic", path: scenicRoute, priority: 3 })
+  return routes
+}
+
+function getRouteDetails(from: string, to: string) {
+  const route = distanceData.find((r) => (r.from === from && r.to === to) || (r.from === to && r.to === from))
   if (route) {
-    const actualTollGates = findTollGatesOnSegment(from, to, route.distance)
-    return {
-      from: from,
-      to: to,
-      distance: route.distance,
-      time: route.time,
-      routeType: route.routeType,
-      scenic: route.scenic,
-      tollGates: actualTollGates,
-    }
+    const actualTollGates = findTollGatesOnSegment(from, to)
+    return { from, to, distance: route.distance, time: route.time, routeType: route.routeType, scenic: route.scenic, tollGates: actualTollGates }
   }
   return null
 }
 
-// Build route segments from path
-const buildRouteSegments = (path: string[]): Array<ReturnType<typeof getRouteDetails>> => {
+function buildRouteSegments(path: string[]) {
   const segments: Array<ReturnType<typeof getRouteDetails>> = []
   for (let i = 0; i < path.length - 1; i++) {
-    const from = path[i]
-    const to = path[i + 1]
-    const details = getRouteDetails(from, to)
-    if (details) {
-      segments.push(details)
-    }
+    const details = getRouteDetails(path[i], path[i + 1])
+    if (details) segments.push(details)
   }
   return segments
 }
 
-// Calculate fuel cost
-const calculateFuelCost = (distance: number, vehicleType: keyof typeof vehicleTypes): number => {
-  const consumption = vehicleTypes[vehicleType].consumption
-  const litresNeeded = distance / consumption
-  return litresNeeded * FUEL_PRICE_USD
+function calculateFuelCost(distance: number, vehicleType: keyof typeof vehicleTypes): number {
+  return (distance / vehicleTypes[vehicleType].consumption) * FUEL_PRICE_USD
 }
 
-// Update the calculateTollCosts function to work with actual toll gate objects
-const calculateTollCosts = (tollGateObjects: TollGate[], vehicleType: keyof typeof vehicleTypes) => {
+function calculateTollCosts(tollGateObjects: TollGate[], vehicleType: keyof typeof vehicleTypes) {
   const tollCategory = vehicleTypes[vehicleType].tollCategory
   const tollFeePerGate = tollFees[tollCategory as keyof typeof tollFees]
   const numberOfTollGates = tollGateObjects.length
   return {
-    tollGates: tollGateObjects.map((tollGate) => ({
-      ...tollGate,
-      cost: tollFeePerGate,
-    })),
+    tollGates: tollGateObjects.map((tollGate) => ({ ...tollGate, cost: tollFeePerGate })),
     totalCost: numberOfTollGates * tollFeePerGate,
     numberOfGates: numberOfTollGates,
   }
 }
 
-// Check for border crossings
-const getBorderCrossings = (segments: Array<{ from: string; to: string }>) => {
+function calculateTollGatesForRoute(segments: Array<{ tollGates: TollGate[] }>): TollGate[] {
+  const uniqueTollGates = new Map<string, TollGate>()
+  segments.forEach((segment) => {
+    if (segment.tollGates && segment.tollGates.length > 0) {
+      segment.tollGates.forEach((tollGate) => uniqueTollGates.set(tollGate.id, tollGate))
+    }
+  })
+  return Array.from(uniqueTollGates.values())
+}
+
+function getBorderCrossings(segments: Array<{ from: string; to: string }>) {
   const crossings: Array<{ from: string; to: string; location: string }> = []
   segments.forEach((segment) => {
-    const crossing = provincialBoundaries.find(
-      (boundary) => boundary.cities.includes(segment.from) && boundary.cities.includes(segment.to),
-    )
-    if (crossing) {
-      crossings.push({
-        from: crossing.from,
-        to: crossing.to,
-        location: `${segment.from} - ${segment.to}`,
-      })
-    }
+    const crossing = provincialBoundaries.find((b) => b.cities.includes(segment.from) && b.cities.includes(segment.to))
+    if (crossing) crossings.push({ from: crossing.from, to: crossing.to, location: `${segment.from} - ${segment.to}` })
   })
   return crossings
 }
 
-import type { FC } from "react"
 export default function DistanceTableSystem() {
-  const [searchTerm, setSearchTerm] = useState<string>("")
-  const [fromCity, setFromCity] = useState<string>("")
-  const [toCity, setToCity] = useState<string>("")
+  const [searchTerm, setSearchTerm] = useState("")
+  const [fromCity, setFromCity] = useState("")
+  const [toCity, setToCity] = useState("")
   const [selectedVehicle, setSelectedVehicle] = useState<keyof typeof vehicleTypes>("car")
   const [selectedRoutes, setSelectedRoutes] = useState<RouteResult[]>([])
-  const [activeRouteIndex, setActiveRouteIndex] = useState<number>(0)
+  const [activeRouteIndex, setActiveRouteIndex] = useState(0)
 
   const filteredData = useMemo(() => {
     return distanceData.filter((item) => {
-      const matchesSearch =
-        searchTerm === "" ||
-        item.from.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.to.toLowerCase().includes(searchTerm.toLowerCase())
-
+      const matchesSearch = searchTerm === "" || item.from.toLowerCase().includes(searchTerm.toLowerCase()) || item.to.toLowerCase().includes(searchTerm.toLowerCase())
       const matchesFrom = fromCity === "" || item.from === fromCity
       const matchesToCity = toCity === "" || item.to === toCity
-
       return matchesSearch && matchesFrom && matchesToCity
     })
   }, [searchTerm, fromCity, toCity])
 
-  const calculateRoute = () => {
+  const calculateRoute = useCallback(() => {
     if (fromCity && toCity) {
       const graph = buildGraph()
       const routes = findMultipleRoutes(graph, fromCity, toCity)
-
       const processedRoutes = routes.map((route) => {
         const segments = buildRouteSegments(route.path)
         let totalDistance = 0
         let totalTimeMinutes = 0
-
         segments.forEach((segment) => {
           if (segment) {
             totalDistance += segment.distance
@@ -1148,40 +207,27 @@ export default function DistanceTableSystem() {
             totalTimeMinutes += hours * 60 + minutes
           }
         })
-
         const totalHours = Math.floor(totalTimeMinutes / 60)
         const remainingMinutes = totalTimeMinutes % 60
         const formattedTime = `${totalHours}h ${remainingMinutes}m`
-
         const fuelCost = calculateFuelCost(totalDistance, selectedVehicle)
         const nonNullSegments = segments.filter((s): s is NonNullable<typeof s> => s !== null)
         const tollGateObjects = calculateTollGatesForRoute(nonNullSegments)
         const tollInfo = calculateTollCosts(tollGateObjects, selectedVehicle)
         const borderCrossings = getBorderCrossings(nonNullSegments)
-
-        return {
-          ...route,
-          segments: nonNullSegments,
-          totalDistance,
-          totalTime: formattedTime,
-          fuelCost,
-          tollInfo,
-          borderCrossings,
-        }
+        return { ...route, segments: nonNullSegments, totalDistance, totalTime: formattedTime, fuelCost, tollInfo, borderCrossings }
       })
-
       setSelectedRoutes(processedRoutes)
       setActiveRouteIndex(0)
     }
-  }
+  }, [fromCity, toCity, selectedVehicle])
 
   const activeRoute = selectedRoutes[activeRouteIndex]
+  const VehicleIcon = vehicleIcons[selectedVehicle]
 
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-
-      {/* Premium Hero */}
       <header className="relative overflow-hidden border-b border-border/60">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_hsl(var(--primary)/0.12),_transparent_60%)]" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-16 lg:py-20 text-center">
@@ -1193,13 +239,12 @@ export default function DistanceTableSystem() {
             Plan Every Journey with <span className="text-primary">Precision</span>
           </h1>
           <p className="mt-3 sm:mt-5 text-xs sm:text-sm lg:text-lg text-muted-foreground max-w-2xl mx-auto text-pretty px-2 sm:px-0">
-            Calculate distances, travel times, fuel costs, and detailed toll information between major cities across
-            Zimbabwe — all in one refined dashboard.
+            Calculate distances, travel times, fuel costs, and detailed toll information between major cities across Zimbabwe
           </p>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-6 sm:space-y-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6 sm:space-y-8">
         {/* Route Calculator */}
         <Card className="border-border/60 bg-card/80 backdrop-blur shadow-xl shadow-black/20">
           <CardHeader className="pb-3 sm:pb-4 border-b border-border/50">
@@ -1209,363 +254,172 @@ export default function DistanceTableSystem() {
               </span>
               <span className="leading-tight">Route Calculator</span>
             </CardTitle>
-            <CardDescription className="text-xs sm:text-sm">
-              Select departure & destination cities, choose vehicle type
-            </CardDescription>
+            <CardDescription className="text-xs sm:text-sm">Select departure & destination cities, choose vehicle type</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
-
               <div>
-                <label className="text-sm font-medium mb-2 block">From City</label>
-                <input
-                  type="text"
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  placeholder="Type to search departure city"
-                  value={fromCity}
-                  onChange={e => setFromCity(e.target.value)}
-                  list="from-cities-list"
-                  autoComplete="off"
-                />
-                <datalist id="from-cities-list">
-                  {cities.filter(city => city.toLowerCase().includes(fromCity.toLowerCase())).map(city => (
-                    <option key={city} value={city} />
-                  ))}
-                </datalist>
+                <label className="text-xs sm:text-sm font-medium mb-1.5 sm:mb-2 block">From City</label>
+                <input type="text" className="h-9 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Type to search departure city" value={fromCity} onChange={(e) => setFromCity(e.target.value)} list="from-cities-list" autoComplete="off" />
+                <datalist id="from-cities-list">{cities.filter((city) => city.toLowerCase().includes(fromCity.toLowerCase())).map((city) => (<option key={city} value={city} />))}</datalist>
               </div>
-
               <div>
-                <label className="text-sm font-medium mb-2 block">To City</label>
-                <input
-                  type="text"
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  placeholder="Type to search destination city"
-                  value={toCity}
-                  onChange={e => setToCity(e.target.value)}
-                  list="to-cities-list"
-                  autoComplete="off"
-                />
-                <datalist id="to-cities-list">
-                  {cities.filter(city => city.toLowerCase().includes(toCity.toLowerCase())).map(city => (
-                    <option key={city} value={city} />
-                  ))}
-                </datalist>
+                <label className="text-xs sm:text-sm font-medium mb-1.5 sm:mb-2 block">To City</label>
+                <input type="text" className="h-9 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Type to search destination city" value={toCity} onChange={(e) => setToCity(e.target.value)} list="to-cities-list" autoComplete="off" />
+                <datalist id="to-cities-list">{cities.filter((city) => city.toLowerCase().includes(toCity.toLowerCase())).map((city) => (<option key={city} value={city} />))}</datalist>
               </div>
-
               <div>
-                <label className="text-sm font-medium mb-2 block">Vehicle Type</label>
-                <Select
-                  value={selectedVehicle}
-                  onValueChange={(val) => setSelectedVehicle(val as keyof typeof vehicleTypes)}
-                >
-                  <SelectTrigger className="h-10">
-                    <SelectValue placeholder="Select vehicle" />
-                  </SelectTrigger>
+                <label className="text-xs sm:text-sm font-medium mb-1.5 sm:mb-2 block">Vehicle Type</label>
+                <Select value={selectedVehicle} onValueChange={(val) => setSelectedVehicle(val as keyof typeof vehicleTypes)}>
+                  <SelectTrigger className="h-9 sm:h-10"><SelectValue placeholder="Select vehicle" /></SelectTrigger>
                   <SelectContent>
                     {Object.entries(vehicleTypes).map(([key, vehicle]) => {
-                      const IconComponent = vehicle.icon
-                      return (
-                        <SelectItem key={key} value={key}>
-                          <div className="flex items-center gap-2">
-                            <IconComponent className={`h-4 w-4 ${vehicle.color}`} />
-                            <span className="hidden sm:inline">{vehicle.name}</span>
-                            <span className="sm:hidden">{vehicle.name.split(" ")[0]}</span>
-                          </div>
-                        </SelectItem>
-                      )
+                      const IconComponent = vehicleIcons[key as keyof typeof vehicleIcons]
+                      return (<SelectItem key={key} value={key}><div className="flex items-center gap-2"><IconComponent className="h-4 w-4" /><span className="hidden sm:inline">{vehicle.name}</span><span className="sm:hidden">{vehicle.name.split(" ")[0]}</span></div></SelectItem>)
                     })}
                   </SelectContent>
                 </Select>
               </div>
-
               <div className="flex items-end">
-                <Button onClick={calculateRoute} className="w-full h-10" disabled={!fromCity || !toCity}>
-                  <span className="hidden sm:inline">Calculate Routes</span>
-                  <span className="sm:hidden">Calculate</span>
-                </Button>
+                <Button onClick={calculateRoute} className="w-full h-9 sm:h-10 text-xs sm:text-sm" disabled={!fromCity || !toCity}>Calculate</Button>
               </div>
             </div>
 
-            {/* Route Options */}
-            {selectedRoutes.length > 0 && (
+            {/* Route Results */}
+            {selectedRoutes.length > 0 && activeRoute && (
               <div className="space-y-4">
                 <div className="flex gap-2 flex-wrap">
                   {selectedRoutes.map((route, index) => (
-                    <Button
-                      key={index}
-                      variant={activeRouteIndex === index ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setActiveRouteIndex(index)}
-                      className="capitalize text-xs sm:text-sm"
-                    >
+                    <Button key={index} variant={activeRouteIndex === index ? "default" : "outline"} size="sm" onClick={() => setActiveRouteIndex(index)} className="capitalize text-[10px] sm:text-xs">
                       <span className="hidden sm:inline">{route.type} Route</span>
                       <span className="sm:hidden">{route.type}</span>
-                      {route.type === "scenic" && " 🌄"}
-                      {route.type === "fastest" && " ⚡"}
-                      {route.type === "shortest" && " 📏"}
+                      {route.type === "scenic" && " 🌄"}{route.type === "fastest" && " ⚡"}{route.type === "shortest" && " 📏"}
                     </Button>
                   ))}
                 </div>
-
-                {activeRoute && (
-                  <Card className="border-primary/20 bg-secondary/40">
-                    <CardContent className="pt-4 sm:pt-6">
-                      {/* Route Summary */}
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4 text-center mb-4 sm:mb-6">
-                        <div className="rounded-lg border border-border/50 bg-card/60 p-2.5 sm:p-3">
-                          <p className="text-[10px] sm:text-xs uppercase tracking-wide text-muted-foreground">Route</p>
-                          <p className="text-xs sm:text-sm font-semibold mt-0.5 sm:mt-1 truncate">
-                            {fromCity} → {toCity}
-                          </p>
-                          <Badge variant="secondary" className="mt-1 capitalize text-[10px] sm:text-xs">
-                            {activeRoute.type}
-                          </Badge>
-                        </div>
-                        <div className="rounded-lg border border-border/50 bg-card/60 p-2.5 sm:p-3">
-                          <p className="text-[10px] sm:text-xs uppercase tracking-wide text-muted-foreground">Distance</p>
-                          <p className="text-base sm:text-xl lg:text-2xl font-bold text-primary mt-0.5 sm:mt-1">
-                            {activeRoute.totalDistance}<span className="text-xs sm:text-sm ml-0.5">km</span>
-                          </p>
-                        </div>
-                        <div className="rounded-lg border border-border/50 bg-card/60 p-2.5 sm:p-3">
-                          <p className="text-[10px] sm:text-xs uppercase tracking-wide text-muted-foreground">Travel Time</p>
-                          <p className="text-xs sm:text-base lg:text-lg font-semibold text-foreground mt-0.5 sm:mt-1">
-                            {activeRoute.totalTime}
-                          </p>
-                        </div>
-                        <div className="rounded-lg border border-border/50 bg-card/60 p-2.5 sm:p-3">
-                          <p className="text-[10px] sm:text-xs uppercase tracking-wide text-muted-foreground">Toll Gates</p>
-                          <p className="text-base sm:text-xl lg:text-2xl font-bold text-primary mt-0.5 sm:mt-1">
-                            {activeRoute.tollInfo?.numberOfGates ?? 0}
-                          </p>
-                          <p className="text-[10px] sm:text-xs text-muted-foreground">
-                            ${tollFees[vehicleTypes[selectedVehicle].tollCategory as keyof typeof tollFees].toFixed(2)} each
-                          </p>
-                        </div>
-                        <div className="rounded-lg border border-border/50 bg-card/60 p-2.5 sm:p-3 col-span-2 sm:col-span-1">
-                          <p className="text-[10px] sm:text-xs uppercase tracking-wide text-muted-foreground">Fuel Cost</p>
-                          <p className="text-xs sm:text-base lg:text-lg font-bold text-primary mt-0.5 sm:mt-1">
-                            ${activeRoute.fuelCost !== undefined ? activeRoute.fuelCost.toFixed(2) : "-"}
-                          </p>
-                          <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
-                            {vehicleTypes[selectedVehicle].name.split(" ")[0]} ({vehicleTypes[selectedVehicle].consumption} km/L)
-                          </p>
-                        </div>
+                <Card className="border-primary/20 bg-secondary/40">
+                  <CardContent className="pt-4 sm:pt-6">
+                    {/* Route Summary */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4 text-center mb-4 sm:mb-6">
+                      <div className="rounded-lg border border-border/50 bg-card/60 p-2.5 sm:p-3">
+                        <p className="text-[10px] sm:text-xs uppercase tracking-wide text-muted-foreground">Route</p>
+                        <p className="text-xs sm:text-sm font-semibold mt-0.5 sm:mt-1 truncate">{fromCity} → {toCity}</p>
+                        <Badge variant="secondary" className="mt-1 capitalize text-[10px]">{activeRoute.type}</Badge>
                       </div>
+                      <div className="rounded-lg border border-border/50 bg-card/60 p-2.5 sm:p-3">
+                        <p className="text-[10px] sm:text-xs uppercase tracking-wide text-muted-foreground">Distance</p>
+                        <p className="text-base sm:text-xl lg:text-2xl font-bold text-primary mt-0.5 sm:mt-1">{activeRoute.totalDistance}<span className="text-xs sm:text-sm ml-0.5">km</span></p>
+                      </div>
+                      <div className="rounded-lg border border-border/50 bg-card/60 p-2.5 sm:p-3">
+                        <p className="text-[10px] sm:text-xs uppercase tracking-wide text-muted-foreground">Travel Time</p>
+                        <p className="text-xs sm:text-base lg:text-lg font-semibold text-foreground mt-0.5 sm:mt-1">{activeRoute.totalTime}</p>
+                      </div>
+                      <div className="rounded-lg border border-border/50 bg-card/60 p-2.5 sm:p-3">
+                        <p className="text-[10px] sm:text-xs uppercase tracking-wide text-muted-foreground">Toll Gates</p>
+                        <p className="text-base sm:text-xl lg:text-2xl font-bold text-primary mt-0.5 sm:mt-1">{activeRoute.tollInfo?.numberOfGates ?? 0}</p>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">${tollFees[vehicleTypes[selectedVehicle].tollCategory as keyof typeof tollFees].toFixed(2)} each</p>
+                      </div>
+                      <div className="rounded-lg border border-border/50 bg-card/60 p-2.5 sm:p-3 col-span-2 sm:col-span-1">
+                        <p className="text-[10px] sm:text-xs uppercase tracking-wide text-muted-foreground">Fuel Cost</p>
+                        <p className="text-xs sm:text-base lg:text-lg font-bold text-primary mt-0.5 sm:mt-1">${activeRoute.fuelCost?.toFixed(2) ?? "-"}</p>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{vehicleTypes[selectedVehicle].name.split(" ")[0]} ({vehicleTypes[selectedVehicle].consumption} km/L)</p>
+                      </div>
+                    </div>
 
-                      <Tabs defaultValue="route" className="w-full">
-                        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 h-auto gap-1">
-                          <TabsTrigger value="route" className="text-[10px] sm:text-xs px-2 sm:px-3">
-                            <span className="hidden sm:inline">Route Details</span>
-                            <span className="sm:hidden">Route</span>
-                          </TabsTrigger>
-                          <TabsTrigger value="costs" className="text-[10px] sm:text-xs px-2 sm:px-3">
-                            Costs
-                          </TabsTrigger>
-                          <TabsTrigger value="tolls" className="text-[10px] sm:text-xs px-2 sm:px-3">
-                            <span className="hidden sm:inline">Toll Gates ({activeRoute.tollInfo?.numberOfGates ?? 0})</span>
-                            <span className="sm:hidden">Tolls ({activeRoute.tollInfo?.numberOfGates ?? 0})</span>
-                          </TabsTrigger>
-                          <TabsTrigger value="borders" className="text-[10px] sm:text-xs px-2 sm:px-3">
-                            <span className="hidden sm:inline">Border Info</span>
-                            <span className="sm:hidden">Borders</span>
-                          </TabsTrigger>
-                        </TabsList>
+                    <Tabs defaultValue="route" className="w-full">
+                      <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 h-auto gap-1">
+                        <TabsTrigger value="route" className="text-[10px] sm:text-xs px-2 sm:px-3"><span className="hidden sm:inline">Route Details</span><span className="sm:hidden">Route</span></TabsTrigger>
+                        <TabsTrigger value="costs" className="text-[10px] sm:text-xs px-2 sm:px-3">Costs</TabsTrigger>
+                        <TabsTrigger value="tolls" className="text-[10px] sm:text-xs px-2 sm:px-3"><span className="hidden sm:inline">Toll Gates ({activeRoute.tollInfo?.numberOfGates ?? 0})</span><span className="sm:hidden">Tolls ({activeRoute.tollInfo?.numberOfGates ?? 0})</span></TabsTrigger>
+                        <TabsTrigger value="borders" className="text-[10px] sm:text-xs px-2 sm:px-3"><span className="hidden sm:inline">Border Info</span><span className="sm:hidden">Borders</span></TabsTrigger>
+                      </TabsList>
 
-                        <TabsContent value="route" className="space-y-2 sm:space-y-3 mt-3 sm:mt-4">
-                          <h4 className="font-medium text-xs sm:text-sm">Route Breakdown:</h4>
-                          {activeRoute.segments?.map((segment, index) => (
-                            segment ? (
-                                <div
-                                  key={index}
-                                  className="flex flex-col sm:flex-row sm:items-center justify-between bg-card/60 border border-border/50 rounded-md p-2.5 sm:p-3 gap-1.5 sm:gap-2"
-                                >
-                                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                                  <span className="font-medium text-xs sm:text-sm">{segment.from}</span>
-                                  <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
-                                  <span className="font-medium text-xs sm:text-sm">{segment.to}</span>
-                                  {segment.scenic && (
-                                    <Badge variant="outline" className="text-[10px] sm:text-xs">
-                                      Scenic
-                                    </Badge>
-                                  )}
-                                  {segment.tollGates && segment.tollGates.length > 0 && (
-                                    <Badge variant="outline" className="text-[10px] sm:text-xs">
-                                      {segment.tollGates.length} Toll{segment.tollGates.length > 1 ? "s" : ""}
-                                    </Badge>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2 sm:gap-4 text-[10px] sm:text-xs">
-                                  <span className="text-muted-foreground">{segment.distance} km</span>
-                                  <span className="text-primary">{segment.time}</span>
-                                  <Badge variant="secondary" className="text-[10px] sm:text-xs capitalize">
-                                    {segment.routeType.replace("_", " ")}
-                                  </Badge>
-                                </div>
-                              </div>
-                            ) : null
-                          ))}
-                        </TabsContent>
-
-                        <TabsContent value="costs" className="space-y-3 sm:space-y-4 mt-3 sm:mt-4">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                            <Card className="p-3 sm:p-4">
-                              <div className="flex items-center gap-2 mb-2">
-                                <Fuel className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
-                                <h4 className="font-medium text-xs sm:text-sm">Fuel Costs</h4>
-                              </div>
-                              <div className="space-y-1.5 sm:space-y-2 text-[10px] sm:text-sm">
-                                <div className="flex justify-between">
-                                  <span>Distance:</span>
-                                  <span>{activeRoute.totalDistance} km</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Fuel needed:</span>
-                                  <span>
-                                    {activeRoute.totalDistance !== undefined ? (activeRoute.totalDistance / vehicleTypes[selectedVehicle].consumption).toFixed(1) : "-"} L
-                                  </span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Price per litre:</span>
-                                  <span>${FUEL_PRICE_USD}</span>
-                                </div>
-                                <div className="flex justify-between font-semibold border-t pt-1.5 sm:pt-2">
-                                  <span>Total Fuel Cost:</span>
-                                  <span className="text-primary">${activeRoute.fuelCost !== undefined ? activeRoute.fuelCost.toFixed(2) : "-"}</span>
-                                </div>
-                              </div>
-                            </Card>
-
-                            <Card className="p-3 sm:p-4">
-                              <div className="flex items-center gap-2 mb-2">
-                                <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
-                                <h4 className="font-medium text-xs sm:text-sm">Total Trip Cost</h4>
-                              </div>
-                              <div className="space-y-1.5 sm:space-y-2 text-[10px] sm:text-sm">
-                                <div className="flex justify-between">
-                                  <span>Fuel:</span>
-                                  <span>${activeRoute.fuelCost !== undefined ? activeRoute.fuelCost.toFixed(2) : "-"}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Tolls ({activeRoute.tollInfo?.numberOfGates ?? 0}):</span>
-                                  <span>${activeRoute.tollInfo?.totalCost !== undefined ? activeRoute.tollInfo.totalCost.toFixed(2) : "-"}</span>
-                                </div>
-                                <div className="flex justify-between font-semibold border-t pt-1.5 sm:pt-2 text-xs sm:text-lg">
-                                  <span>Total:</span>
-                                  <span className="text-primary">${activeRoute.fuelCost !== undefined && activeRoute.tollInfo?.totalCost !== undefined ? (activeRoute.fuelCost + activeRoute.tollInfo.totalCost).toFixed(2) : "-"}</span>
-                                </div>
-                              </div>
-                            </Card>
+                      <TabsContent value="route" className="space-y-2 sm:space-y-3 mt-3 sm:mt-4">
+                        <h4 className="font-medium text-xs sm:text-sm">Route Breakdown:</h4>
+                        {activeRoute.segments?.map((segment, index) => (
+                          <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between bg-card/60 border border-border/50 rounded-md p-2.5 sm:p-3 gap-1.5 sm:gap-2">
+                            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                              <span className="font-medium text-xs sm:text-sm">{segment.from}</span>
+                              <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
+                              <span className="font-medium text-xs sm:text-sm">{segment.to}</span>
+                              {segment.scenic && <Badge variant="outline" className="text-[10px]">Scenic</Badge>}
+                              {segment.tollGates && segment.tollGates.length > 0 && <Badge variant="outline" className="text-[10px]">{segment.tollGates.length} Toll{segment.tollGates.length > 1 ? "s" : ""}</Badge>}
+                            </div>
+                            <div className="flex items-center gap-2 sm:gap-4 text-[10px] sm:text-xs">
+                              <span className="text-muted-foreground">{segment.distance} km</span>
+                              <span className="text-primary">{segment.time}</span>
+                              <Badge variant="secondary" className="text-[10px] capitalize">{segment.routeType.replace("_", " ")}</Badge>
+                            </div>
                           </div>
+                        ))}
+                      </TabsContent>
 
-                          {/* Toll Fee Structure */}
-                          <Card className="p-3 sm:p-4 bg-secondary/40 border-border/50">
-                            <h4 className="font-medium text-xs sm:text-sm mb-2 sm:mb-3">Zimbabwe Toll Fee Structure</h4>
-                            <div className="grid grid-cols-2 lg:grid-cols-3 gap-1.5 sm:gap-2 text-[10px] sm:text-sm">
-                              {Object.entries(tollFees).map(([category, fee]) => (
-                                <div key={category} className="flex justify-between">
-                                  <span className="capitalize">{category.replace("_", " ")}:</span>
-                                  <span className="font-semibold">${fee.toFixed(2)}</span>
-                                </div>
-                              ))}
+                      <TabsContent value="costs" className="space-y-3 sm:space-y-4 mt-3 sm:mt-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                          <Card className="p-3 sm:p-4">
+                            <div className="flex items-center gap-2 mb-2"><Fuel className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" /><h4 className="font-medium text-xs sm:text-sm">Fuel Costs</h4></div>
+                            <div className="space-y-1.5 sm:space-y-2 text-[10px] sm:text-sm">
+                              <div className="flex justify-between"><span>Distance:</span><span>{activeRoute.totalDistance} km</span></div>
+                              <div className="flex justify-between"><span>Fuel needed:</span><span>{activeRoute.totalDistance ? (activeRoute.totalDistance / vehicleTypes[selectedVehicle].consumption).toFixed(1) : "-"} L</span></div>
+                              <div className="flex justify-between"><span>Price per litre:</span><span>${FUEL_PRICE_USD}</span></div>
+                              <div className="flex justify-between font-semibold border-t pt-1.5 sm:pt-2"><span>Total Fuel Cost:</span><span className="text-primary">${activeRoute.fuelCost?.toFixed(2) ?? "-"}</span></div>
                             </div>
                           </Card>
-                        </TabsContent>
-
-                        <TabsContent value="tolls" className="space-y-2 sm:space-y-3 mt-3 sm:mt-4">
-                          {activeRoute.tollInfo?.numberOfGates && activeRoute.tollInfo.numberOfGates > 0 ? (
-                            <>
-                              <div className="flex justify-between items-center">
-                                <h4 className="font-medium text-xs sm:text-sm">Toll Gates:</h4>
-                                <Badge variant="outline" className="text-[10px] sm:text-xs">
-                              {activeRoute.tollInfo?.numberOfGates ?? 0} Gate
-                                  {activeRoute.tollInfo && activeRoute.tollInfo.numberOfGates > 1 ? "s" : ""}
-                                </Badge>
-                              </div>
-                              {activeRoute.tollInfo?.tollGates?.map((toll, index) => (
-                                <div key={index} className="bg-card/60 border border-border/50 rounded-md p-2.5 sm:p-3">
-                                  <div className="flex flex-col sm:flex-row justify-between items-start gap-1.5 sm:gap-2">
-                                    <div className="flex-1 min-w-0">
-                                      <h5 className="font-medium text-xs sm:text-sm truncate">{toll.name}</h5>
-                                      <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{toll.location}</p>
-                                      <p className="text-[10px] sm:text-xs text-muted-foreground">Highway: {toll.highway}</p>
-                                    </div>
-                                    <div className="text-right shrink-0">
-                                      <Badge variant="outline" className="text-[10px] sm:text-xs mb-1">
-                                        ${toll.cost.toFixed(2)}
-                                      </Badge>
-                                      <p className="text-[10px] sm:text-xs text-muted-foreground">
-                                        {toll.kmFromHarare
-                                          ? `${toll.kmFromHarare}km from Harare`
-                                          : toll.kmFromBulawayo
-                                            ? `${toll.kmFromBulawayo}km from Bulawayo`
-                                            : toll.kmFromMutare
-                                              ? `${toll.kmFromMutare}km from Mutare`
-                                              : ""}
-                                      </p>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                              <div className="text-right font-semibold text-xs sm:text-sm bg-primary/10 text-primary border border-primary/20 p-2.5 sm:p-3 rounded-md">
-                                Total Toll Cost: ${activeRoute.tollInfo?.totalCost !== undefined ? activeRoute.tollInfo.totalCost.toFixed(2) : "-"}
-                                <p className="text-[10px] sm:text-xs text-muted-foreground font-normal">
-                                  {activeRoute.tollInfo?.numberOfGates ?? 0} toll gate
-                                  {activeRoute.tollInfo && activeRoute.tollInfo.numberOfGates > 1 ? "s" : ""} × $
-                                  {tollFees[vehicleTypes[selectedVehicle].tollCategory as keyof typeof tollFees].toFixed(2)} each
-                                </p>
-                              </div>
-                            </>
-                          ) : (
-                            <div className="text-center py-6 sm:py-8">
-                              <p className="text-muted-foreground text-xs sm:text-sm mb-1 sm:mb-2">No toll gates on this route</p>
-                              <p className="text-[10px] sm:text-xs text-muted-foreground">
-                                This route uses secondary roads or urban streets without toll facilities
-                              </p>
+                          <Card className="p-3 sm:p-4">
+                            <div className="flex items-center gap-2 mb-2"><DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" /><h4 className="font-medium text-xs sm:text-sm">Total Trip Cost</h4></div>
+                            <div className="space-y-1.5 sm:space-y-2 text-[10px] sm:text-sm">
+                              <div className="flex justify-between"><span>Fuel:</span><span>${activeRoute.fuelCost?.toFixed(2) ?? "-"}</span></div>
+                              <div className="flex justify-between"><span>Tolls ({activeRoute.tollInfo?.numberOfGates ?? 0}):</span><span>${activeRoute.tollInfo?.totalCost?.toFixed(2) ?? "-"}</span></div>
+                              <div className="flex justify-between font-semibold border-t pt-1.5 sm:pt-2 text-xs sm:text-lg"><span>Total:</span><span className="text-primary">${(activeRoute.fuelCost && activeRoute.tollInfo?.totalCost) ? (activeRoute.fuelCost + activeRoute.tollInfo.totalCost).toFixed(2) : "-"}</span></div>
                             </div>
-                          )}
-                        </TabsContent>
+                          </Card>
+                        </div>
+                        <Card className="p-3 sm:p-4 bg-secondary/40 border-border/50">
+                          <h4 className="font-medium text-xs sm:text-sm mb-2 sm:mb-3">Zimbabwe Toll Fee Structure</h4>
+                          <div className="grid grid-cols-2 lg:grid-cols-3 gap-1.5 sm:gap-2 text-[10px] sm:text-sm">
+                            {Object.entries(tollFees).map(([category, fee]) => (<div key={category} className="flex justify-between"><span className="capitalize">{category}:</span><span className="font-semibold">${fee.toFixed(2)}</span></div>))}
+                          </div>
+                        </Card>
+                      </TabsContent>
 
-                        <TabsContent value="borders" className="space-y-2 sm:space-y-3 mt-3 sm:mt-4">
-                          {activeRoute.borderCrossings && activeRoute.borderCrossings.length > 0 ? (
-                            <>
-                              <h4 className="font-medium text-xs sm:text-sm">Provincial Border Crossings:</h4>
-                              {activeRoute.borderCrossings?.map((crossing, index) => (
-                                <div key={index} className="bg-card/60 border border-border/50 rounded-md p-2.5 sm:p-3">
-                                  <div className="flex items-center gap-2">
-                                    <MapPin className="h-3 w-3 sm:h-4 sm:w-4 text-primary shrink-0" />
-                                    <div className="min-w-0 flex-1">
-                                      <p className="font-medium text-xs sm:text-sm">
-                                        {crossing.from} → {crossing.to}
-                                      </p>
-                                      <p className="text-[10px] sm:text-xs text-muted-foreground truncate">At: {crossing.location}</p>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                              <div className="bg-primary/5 border border-primary/20 rounded-md p-2.5 sm:p-3">
-                                <div className="flex items-start gap-2">
-                                  <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 text-primary mt-0.5 shrink-0" />
-                                  <div className="text-[10px] sm:text-sm text-foreground/90">
-                                    <p className="font-medium">Border Crossing Information:</p>
-                                    <p>
-                                      Ensure you have proper identification when crossing provincial boundaries. Some
-                                      areas may have checkpoints.
-                                    </p>
-                                  </div>
+                      <TabsContent value="tolls" className="space-y-2 sm:space-y-3 mt-3 sm:mt-4">
+                        {activeRoute.tollInfo?.numberOfGates ? (
+                          <>
+                            <div className="flex justify-between items-center"><h4 className="font-medium text-xs sm:text-sm">Toll Gates:</h4><Badge variant="outline" className="text-[10px]">{activeRoute.tollInfo.numberOfGates} Gate{activeRoute.tollInfo.numberOfGates > 1 ? "s" : ""}</Badge></div>
+                            {activeRoute.tollInfo.tollGates?.map((toll, index) => (
+                              <div key={index} className="bg-card/60 border border-border/50 rounded-md p-2.5 sm:p-3">
+                                <div className="flex flex-col sm:flex-row justify-between items-start gap-1.5 sm:gap-2">
+                                  <div className="flex-1 min-w-0"><h5 className="font-medium text-xs sm:text-sm truncate">{toll.name}</h5><p className="text-[10px] sm:text-xs text-muted-foreground truncate">{toll.location}</p><p className="text-[10px] sm:text-xs text-muted-foreground">Highway: {toll.highway}</p></div>
+                                  <div className="text-right shrink-0"><Badge variant="outline" className="text-[10px] mb-1">${toll.cost.toFixed(2)}</Badge><p className="text-[10px] sm:text-xs text-muted-foreground">{toll.kmFromHarare ? `${toll.kmFromHarare}km from Harare` : toll.kmFromBulawayo ? `${toll.kmFromBulawayo}km from Bulawayo` : ""}</p></div>
                                 </div>
                               </div>
-                            </>
-                          ) : (
-                            <p className="text-muted-foreground text-center py-4 text-xs sm:text-sm">
-                              No provincial border crossings on this route
-                            </p>
-                          )}
-                        </TabsContent>
-                      </Tabs>
-                    </CardContent>
-                  </Card>
-                )}
+                            ))}
+                            <div className="text-right font-semibold text-xs sm:text-sm bg-primary/10 text-primary border border-primary/20 p-2.5 sm:p-3 rounded-md">
+                              Total: ${activeRoute.tollInfo.totalCost?.toFixed(2)}
+                              <p className="text-[10px] text-muted-foreground font-normal">{activeRoute.tollInfo.numberOfGates} × ${tollFees[vehicleTypes[selectedVehicle].tollCategory as keyof typeof tollFees].toFixed(2)} each</p>
+                            </div>
+                          </>
+                        ) : (<div className="text-center py-6 sm:py-8"><p className="text-muted-foreground text-xs sm:text-sm mb-1">No toll gates on this route</p><p className="text-[10px] text-muted-foreground">Uses secondary roads or urban streets</p></div>)}
+                      </TabsContent>
+
+                      <TabsContent value="borders" className="space-y-2 sm:space-y-3 mt-3 sm:mt-4">
+                        {activeRoute.borderCrossings?.length ? (
+                          <>
+                            <h4 className="font-medium text-xs sm:text-sm">Provincial Border Crossings:</h4>
+                            {activeRoute.borderCrossings.map((crossing, index) => (
+                              <div key={index} className="bg-card/60 border border-border/50 rounded-md p-2.5 sm:p-3">
+                                <div className="flex items-center gap-2"><MapPin className="h-3 w-3 sm:h-4 sm:w-4 text-primary shrink-0" /><div className="min-w-0 flex-1"><p className="font-medium text-xs sm:text-sm">{crossing.from} → {crossing.to}</p><p className="text-[10px] sm:text-xs text-muted-foreground truncate">At: {crossing.location}</p></div></div>
+                              </div>
+                            ))}
+                            <div className="bg-primary/5 border border-primary/20 rounded-md p-2.5 sm:p-3">
+                              <div className="flex items-start gap-2"><AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 text-primary mt-0.5 shrink-0" /><div className="text-[10px] sm:text-sm text-foreground/90"><p className="font-medium">Border Crossing Info:</p><p>Ensure proper identification when crossing provincial boundaries.</p></div></div>
+                            </div>
+                          </>
+                        ) : (<p className="text-muted-foreground text-center py-4 text-xs sm:text-sm">No provincial border crossings</p>)}
+                      </TabsContent>
+                    </Tabs>
+                  </CardContent>
+                </Card>
               </div>
             )}
           </CardContent>
@@ -1576,202 +430,51 @@ export default function DistanceTableSystem() {
           <CardHeader className="pb-3 sm:pb-4 border-b border-border/50 px-4 sm:px-6">
             <CardTitle className="font-serif text-lg sm:text-xl lg:text-2xl">Distance Table</CardTitle>
             <CardDescription className="text-xs sm:text-sm">Complete distance table between Zimbabwe cities</CardDescription>
-
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 pt-3 sm:pt-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search cities..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 sm:pl-10 h-9 sm:h-10 text-xs sm:text-sm"
-                />
-              </div>
-
-              <Select value={fromCity} onValueChange={setFromCity}>
-                <SelectTrigger className="w-full sm:w-48 h-9 sm:h-10 text-xs sm:text-sm">
-                  <SelectValue placeholder="Filter by city" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All cities</SelectItem>
-                  {cities.map((city) => (
-                    <SelectItem key={city} value={city}>
-                      {city}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {(searchTerm || fromCity || toCity) && (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setSearchTerm("")
-                    setFromCity("")
-                    setToCity("")
-                  }}
-                  className="h-9 sm:h-10 text-xs sm:text-sm"
-                >
-                  <span className="hidden sm:inline">Clear Filters</span>
-                  <span className="sm:hidden">Clear</span>
-                </Button>
-              )}
+              <div className="relative flex-1"><Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" /><Input placeholder="Search cities..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 sm:pl-10 h-9 sm:h-10 text-xs sm:text-sm" /></div>
+              <Select value={fromCity} onValueChange={setFromCity}><SelectTrigger className="w-full sm:w-48 h-9 sm:h-10 text-xs sm:text-sm"><SelectValue placeholder="Filter by city" /></SelectTrigger><SelectContent><SelectItem value="all">All cities</SelectItem>{cities.map((city) => (<SelectItem key={city} value={city}>{city}</SelectItem>))}</SelectContent></Select>
+              {(searchTerm || fromCity || toCity) && <Button variant="outline" onClick={() => { setSearchTerm(""); setFromCity(""); setToCity(""); }} className="h-9 sm:h-10 text-xs sm:text-sm"><span className="hidden sm:inline">Clear Filters</span><span className="sm:hidden">Clear</span></Button>}
             </div>
           </CardHeader>
-
           <CardContent className="px-4 sm:px-6">
             <div className="rounded-xl border border-border/60 overflow-hidden">
               <div className="overflow-auto max-h-[350px] sm:max-h-[480px]">
                 <Table className="border-collapse">
-                  <TableHeader className="sticky top-0 z-10">
-                    <TableRow className="border-0 hover:bg-transparent bg-secondary [&>th]:bg-secondary">
-                      <TableHead className="min-w-[180px] sm:min-w-[220px] h-10 sm:h-12 text-primary font-semibold uppercase tracking-wider text-[10px] sm:text-xs px-3 sm:px-4">
-                        Route
-                      </TableHead>
-                      <TableHead className="text-right min-w-[80px] sm:min-w-[110px] h-10 sm:h-12 text-primary font-semibold uppercase tracking-wider text-[10px] sm:text-xs px-3 sm:px-4">
-                        Distance
-                      </TableHead>
-                      <TableHead className="text-right min-w-[70px] sm:min-w-[90px] h-10 sm:h-12 text-primary font-semibold uppercase tracking-wider text-[10px] sm:text-xs px-3 sm:px-4">
-                        Time
-                      </TableHead>
-                      <TableHead className="text-right min-w-[90px] sm:min-w-[110px] h-10 sm:h-12 text-primary font-semibold uppercase tracking-wider text-[10px] sm:text-xs px-3 sm:px-4">
-                        Route Type
-                      </TableHead>
-                      <TableHead className="text-right min-w-[100px] sm:min-w-[120px] h-10 sm:h-12 text-primary font-semibold uppercase tracking-wider text-[10px] sm:text-xs px-3 sm:px-4">
-                        Features
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
+                  <TableHeader className="sticky top-0 z-10"><TableRow className="border-0 hover:bg-transparent bg-secondary [&>th]:bg-secondary"><TableHead className="min-w-[180px] sm:min-w-[220px] h-10 sm:h-12 text-primary font-semibold uppercase tracking-wider text-[10px] sm:text-xs px-3 sm:px-4">Route</TableHead><TableHead className="text-right min-w-[80px] sm:min-w-[110px] h-10 sm:h-12 text-primary font-semibold uppercase tracking-wider text-[10px] sm:text-xs px-3 sm:px-4">Distance</TableHead><TableHead className="text-right min-w-[70px] sm:min-w-[90px] h-10 sm:h-12 text-primary font-semibold uppercase tracking-wider text-[10px] sm:text-xs px-3 sm:px-4">Time</TableHead><TableHead className="text-right min-w-[90px] sm:min-w-[110px] h-10 sm:h-12 text-primary font-semibold uppercase tracking-wider text-[10px] sm:text-xs px-3 sm:px-4">Route Type</TableHead><TableHead className="text-right min-w-[100px] sm:min-w-[120px] h-10 sm:h-12 text-primary font-semibold uppercase tracking-wider text-[10px] sm:text-xs px-3 sm:px-4">Features</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {filteredData.length > 0 ? (
-                      filteredData.map((item, index) => (
-                        <TableRow
-                          key={index}
-                          className="border-0 odd:bg-card even:bg-secondary/30 hover:bg-primary/5 transition-colors"
-                        >
-                          <TableCell className="py-2.5 sm:py-3.5 px-3 sm:px-4">
-                            <div className="flex items-center gap-1.5 sm:gap-2.5">
-                              <span className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-primary/70 shrink-0" />
-                              <span className="font-medium text-[11px] sm:text-sm truncate">{item.from}</span>
-                              <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground shrink-0" />
-                              <span className="text-[11px] sm:text-sm text-muted-foreground truncate">{item.to}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right py-2.5 sm:py-3.5 px-3 sm:px-4">
-                            <span className="inline-flex items-center rounded-md bg-primary/10 px-2 sm:px-2.5 py-0.5 sm:py-1 font-semibold text-[11px] sm:text-sm text-primary tabular-nums">
-                              {item.distance} km
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right text-[11px] sm:text-sm text-foreground/80 tabular-nums py-2.5 sm:py-3.5 px-3 sm:px-4">
-                            {item.time}
-                          </TableCell>
-                          <TableCell className="text-right py-2.5 sm:py-3.5 px-3 sm:px-4">
-                            <Badge variant="secondary" className="capitalize text-[10px] sm:text-xs font-normal">
-                              {item.routeType?.replace("_", " ") || "main road"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right py-2.5 sm:py-3.5 px-3 sm:px-4">
-                            <div className="flex gap-1 justify-end flex-wrap">
-                              {item.scenic && (
-                                <Badge variant="outline" className="text-[10px] sm:text-xs border-primary/30 text-primary">
-                                  Scenic
-                                </Badge>
-                              )}
-                              {item.tollGates && item.tollGates.length > 0 && (
-                                <Badge variant="outline" className="text-[10px] sm:text-xs border-primary/30 text-primary">
-                                  {item.tollGates.length} Toll{item.tollGates.length > 1 ? "s" : ""}
-                                </Badge>
-                              )}
-                              {item.alternative && (
-                                <Badge variant="outline" className="text-[10px] sm:text-xs">
-                                  Alt
-                                </Badge>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow className="border-0">
-                        <TableCell colSpan={5} className="text-center py-8 sm:py-12 text-muted-foreground text-xs sm:text-sm">
-                          No routes found matching your criteria
-                        </TableCell>
+                    {filteredData.length > 0 ? filteredData.map((item, index) => (
+                      <TableRow key={index} className="border-0 odd:bg-card even:bg-secondary/30 hover:bg-primary/5">
+                        <TableCell className="py-2.5 sm:py-3.5 px-3 sm:px-4"><div className="flex items-center gap-1.5 sm:gap-2.5"><span className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-primary/70 shrink-0" /><span className="font-medium text-[11px] sm:text-sm truncate">{item.from}</span><ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground shrink-0" /><span className="text-[11px] sm:text-sm text-muted-foreground truncate">{item.to}</span></div></TableCell>
+                        <TableCell className="text-right py-2.5 sm:py-3.5 px-3 sm:px-4"><span className="inline-flex items-center rounded-md bg-primary/10 px-2 sm:px-2.5 py-0.5 sm:py-1 font-semibold text-[11px] sm:text-sm text-primary tabular-nums">{item.distance} km</span></TableCell>
+                        <TableCell className="text-right text-[11px] sm:text-sm text-foreground/80 tabular-nums py-2.5 sm:py-3.5 px-3 sm:px-4">{item.time}</TableCell>
+                        <TableCell className="text-right py-2.5 sm:py-3.5 px-3 sm:px-4"><Badge variant="secondary" className="capitalize text-[10px] sm:text-xs font-normal">{item.routeType?.replace("_", " ") || "main road"}</Badge></TableCell>
+                        <TableCell className="text-right py-2.5 sm:py-3.5 px-3 sm:px-4"><div className="flex gap-1 justify-end flex-wrap">{item.scenic && <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">Scenic</Badge>}{item.tollGates && item.tollGates.length > 0 && <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">{item.tollGates.length} Toll{item.tollGates.length > 1 ? "s" : ""}</Badge>}{item.alternative && <Badge variant="outline" className="text-[10px]">Alt</Badge>}</div></TableCell>
                       </TableRow>
-                    )}
+                    )) : (<TableRow className="border-0"><TableCell colSpan={5} className="text-center py-8 sm:py-12 text-muted-foreground text-xs sm:text-sm">No routes found</TableCell></TableRow>)}
                   </TableBody>
                 </Table>
               </div>
             </div>
-
-            <div className="mt-3 sm:mt-4 text-[10px] sm:text-sm text-muted-foreground">
-              Showing {filteredData.length} of {distanceData.length} routes
-            </div>
+            <div className="mt-3 sm:mt-4 text-[10px] sm:text-sm text-muted-foreground">Showing {filteredData.length} of {distanceData.length} routes</div>
           </CardContent>
         </Card>
 
         {/* Statistics */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4">
-          <Card className="border-border/60 bg-card/80">
-            <CardContent className="pt-3 sm:pt-4 lg:pt-6">
-              <div className="text-center">
-                <p className="text-xl sm:text-2xl lg:text-3xl font-bold font-serif text-primary">{cities.length}</p>
-                <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">Cities Covered</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/60 bg-card/80">
-            <CardContent className="pt-3 sm:pt-4 lg:pt-6">
-              <div className="text-center">
-                <p className="text-xl sm:text-2xl lg:text-3xl font-bold font-serif text-primary">
-                  {distanceData.length}
-                </p>
-                <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">Total Routes</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/60 bg-card/80">
-            <CardContent className="pt-3 sm:pt-4 lg:pt-6">
-              <div className="text-center">
-                <p className="text-xl sm:text-2xl lg:text-3xl font-bold font-serif text-primary">
-                  {zimbabweTollGates.length}
-                </p>
-                <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">Toll Gates</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/60 bg-card/80">
-            <CardContent className="pt-3 sm:pt-4 lg:pt-6">
-              <div className="text-center">
-                <p className="text-xl sm:text-2xl lg:text-3xl font-bold font-serif text-primary">${FUEL_PRICE_USD}</p>
-                <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">Fuel Price/Litre</p>
-              </div>
-            </CardContent>
-          </Card>
+          <Card className="border-border/60 bg-card/80"><CardContent className="pt-3 sm:pt-4 lg:pt-6"><div className="text-center"><p className="text-xl sm:text-2xl lg:text-3xl font-bold font-serif text-primary">{cities.length}</p><p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">Cities Covered</p></div></CardContent></Card>
+          <Card className="border-border/60 bg-card/80"><CardContent className="pt-3 sm:pt-4 lg:pt-6"><div className="text-center"><p className="text-xl sm:text-2xl lg:text-3xl font-bold font-serif text-primary">{distanceData.length}</p><p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">Total Routes</p></div></CardContent></Card>
+          <Card className="border-border/60 bg-card/80"><CardContent className="pt-3 sm:pt-4 lg:pt-6"><div className="text-center"><p className="text-xl sm:text-2xl lg:text-3xl font-bold font-serif text-primary">{zimbabweTollGates.length}</p><p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">Toll Gates</p></div></CardContent></Card>
+          <Card className="border-border/60 bg-card/80"><CardContent className="pt-3 sm:pt-4 lg:pt-6"><div className="text-center"><p className="text-xl sm:text-2xl lg:text-3xl font-bold font-serif text-primary">${FUEL_PRICE_USD}</p><p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">Fuel Price/Litre</p></div></CardContent></Card>
         </div>
 
         {/* Footer */}
         <footer className="mt-6 sm:mt-8 lg:mt-12 py-6 sm:py-8 border-t border-border">
           <div className="text-center space-y-1.5 sm:space-y-2">
             <div className="flex flex-wrap justify-center gap-3 sm:gap-4 mb-1 sm:mb-2">
-              <Link
-                href="/disclaimer"
-                className="text-[10px] sm:text-xs text-primary hover:underline"
-              >
-                Disclaimer
-              </Link>
-              <Link
-                href="/terms-and-conditions"
-                className="text-[10px] sm:text-xs text-primary hover:underline"
-              >
-                Terms & Conditions
-              </Link>
+              <Link href="/disclaimer" className="text-[10px] sm:text-xs text-primary hover:underline">Disclaimer</Link>
+              <Link href="/terms-and-conditions" className="text-[10px] sm:text-xs text-primary hover:underline">Terms & Conditions</Link>
             </div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground">
-              Copyright © 2025, developed by <span className="font-semibold text-foreground">Onwell Masaraure</span>
-            </p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Copyright © 2025, developed by <span className="font-semibold text-foreground">Onwell Masaraure</span></p>
           </div>
         </footer>
       </div>
