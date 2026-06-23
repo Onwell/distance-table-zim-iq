@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { MapPin, Home, Phone, Menu, X } from "lucide-react"
+import { MapPin, Home, Phone, Menu, X, Info } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
@@ -39,6 +39,18 @@ export function Navigation() {
             >
               <Home className="h-4 w-4" />
               Home
+            </Link>
+            <Link
+              href="/about"
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                pathname === "/about"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent",
+              )}
+            >
+              <Info className="h-4 w-4" />
+              About Us
             </Link>
             <Link
               href="/contact"
@@ -79,6 +91,19 @@ export function Navigation() {
               >
                 <Home className="h-4 w-4" />
                 Home
+              </Link>
+              <Link
+                href="/about"
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 rounded-md text-base font-medium transition-colors",
+                  pathname === "/about"
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent",
+                )}
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                <Info className="h-4 w-4" />
+                About Us
               </Link>
               <Link
                 href="/contact"

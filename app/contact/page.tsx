@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { Phone, MessageCircle, MapPin, Clock, Users, Calculator } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -137,7 +138,18 @@ export default function ContactPage() {
 
         {/* Footer */}
         <footer className="py-6 sm:py-8 border-t border-border">
-          <div className="text-center">
+          <div className="text-center space-y-2">
+            <div className="flex flex-wrap justify-center gap-4 mb-2">
+              <Link href="/about" className="text-xs sm:text-sm text-primary hover:underline">
+                About Us
+              </Link>
+              <Link href="/disclaimer" className="text-xs sm:text-sm text-primary hover:underline">
+                Disclaimer
+              </Link>
+              <Link href="/terms-and-conditions" className="text-xs sm:text-sm text-primary hover:underline">
+                Terms & Conditions
+              </Link>
+            </div>
             <p className="text-xs sm:text-sm text-muted-foreground">
               Copyright © 2025, developed by <span className="font-semibold text-foreground">Onwell Masaraure</span>
             </p>

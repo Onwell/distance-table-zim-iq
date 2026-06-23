@@ -471,6 +471,7 @@ export default function DistanceTableSystem() {
         <footer className="mt-6 sm:mt-8 lg:mt-12 py-6 sm:py-8 border-t border-border">
           <div className="text-center space-y-1.5 sm:space-y-2">
             <div className="flex flex-wrap justify-center gap-3 sm:gap-4 mb-1 sm:mb-2">
+              <Link href="/about" className="text-[10px] sm:text-xs text-primary hover:underline">About Us</Link>
               <Link href="/disclaimer" className="text-[10px] sm:text-xs text-primary hover:underline">Disclaimer</Link>
               <Link href="/terms-and-conditions" className="text-[10px] sm:text-xs text-primary hover:underline">Terms & Conditions</Link>
             </div>
