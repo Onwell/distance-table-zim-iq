@@ -1,15 +1,22 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { MapPin, Home, Phone, Menu, X, Info } from "lucide-react"
+import { MapPin, Chrome as Home, Phone, Menu, X, Info } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 export function Navigation() {
-  const pathname = usePathname()
+  const [pathname, setPathname] = useState("/")
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+
+  useEffect(() => {
+    // Use window.location.pathname for client-side pathname detection
+    // This avoids the workUnitAsyncStorage error with usePathname in static exports
+    if (typeof window !== "undefined") {
+      setPathname(window.location.pathname)
+    }
+  }, [])
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen)
