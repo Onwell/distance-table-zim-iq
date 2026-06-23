@@ -260,28 +260,44 @@ export default function DistanceTableSystem() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
               <div>
                 <label className="text-xs sm:text-sm font-medium mb-1.5 sm:mb-2 block">From City</label>
-                <input type="text" className="h-9 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Type to search departure city" value={fromCity} onChange={(e) => setFromCity(e.target.value)} list="from-cities-list" autoComplete="off" />
-                <datalist id="from-cities-list">{cities.filter((city) => city.toLowerCase().includes(fromCity.toLowerCase())).map((city) => (<option key={city} value={city} />))}</datalist>
+                <Select value={fromCity} onValueChange={setFromCity}>
+                  <SelectTrigger className="h-10 sm:h-11 text-sm">
+                    <SelectValue placeholder="Select departure city" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    {cities.map((city) => (
+                      <SelectItem key={city} value={city}>{city}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <label className="text-xs sm:text-sm font-medium mb-1.5 sm:mb-2 block">To City</label>
-                <input type="text" className="h-9 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Type to search destination city" value={toCity} onChange={(e) => setToCity(e.target.value)} list="to-cities-list" autoComplete="off" />
-                <datalist id="to-cities-list">{cities.filter((city) => city.toLowerCase().includes(toCity.toLowerCase())).map((city) => (<option key={city} value={city} />))}</datalist>
+                <Select value={toCity} onValueChange={setToCity}>
+                  <SelectTrigger className="h-10 sm:h-11 text-sm">
+                    <SelectValue placeholder="Select destination city" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    {cities.map((city) => (
+                      <SelectItem key={city} value={city}>{city}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <label className="text-xs sm:text-sm font-medium mb-1.5 sm:mb-2 block">Vehicle Type</label>
                 <Select value={selectedVehicle} onValueChange={(val) => setSelectedVehicle(val as keyof typeof vehicleTypes)}>
-                  <SelectTrigger className="h-9 sm:h-10"><SelectValue placeholder="Select vehicle" /></SelectTrigger>
+                  <SelectTrigger className="h-10 sm:h-11 text-sm"><SelectValue placeholder="Select vehicle" /></SelectTrigger>
                   <SelectContent>
                     {Object.entries(vehicleTypes).map(([key, vehicle]) => {
                       const IconComponent = vehicleIcons[key as keyof typeof vehicleIcons]
-                      return (<SelectItem key={key} value={key}><div className="flex items-center gap-2"><IconComponent className="h-4 w-4" /><span className="hidden sm:inline">{vehicle.name}</span><span className="sm:hidden">{vehicle.name.split(" ")[0]}</span></div></SelectItem>)
+                      return (<SelectItem key={key} value={key}><div className="flex items-center gap-2"><IconComponent className="h-4 w-4" /><span>{vehicle.name}</span></div></SelectItem>)
                     })}
                   </SelectContent>
                 </Select>
               </div>
               <div className="flex items-end">
-                <Button onClick={calculateRoute} className="w-full h-9 sm:h-10 text-xs sm:text-sm" disabled={!fromCity || !toCity}>Calculate</Button>
+                <Button onClick={calculateRoute} className="w-full h-10 sm:h-11 text-sm" disabled={!fromCity || !toCity}>Calculate Route</Button>
               </div>
             </div>
 
@@ -290,132 +306,130 @@ export default function DistanceTableSystem() {
               <div className="space-y-4">
                 <div className="flex gap-2 flex-wrap">
                   {selectedRoutes.map((route, index) => (
-                    <Button key={index} variant={activeRouteIndex === index ? "default" : "outline"} size="sm" onClick={() => setActiveRouteIndex(index)} className="capitalize text-[10px] sm:text-xs">
-                      <span className="hidden sm:inline">{route.type} Route</span>
-                      <span className="sm:hidden">{route.type}</span>
-                      {route.type === "scenic" && " 🌄"}{route.type === "fastest" && " ⚡"}{route.type === "shortest" && " 📏"}
+                    <Button key={index} variant={activeRouteIndex === index ? "default" : "outline"} size="sm" onClick={() => setActiveRouteIndex(index)} className="capitalize text-xs px-3 py-2">
+                      {route.type === "scenic" && "🌄 "}{route.type === "fastest" && "⚡ "}{route.type === "shortest" && "📏 "}{route.type} Route
                     </Button>
                   ))}
                 </div>
                 <Card className="border-primary/20 bg-secondary/40">
                   <CardContent className="pt-4 sm:pt-6">
                     {/* Route Summary */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4 text-center mb-4 sm:mb-6">
-                      <div className="rounded-lg border border-border/50 bg-card/60 p-2.5 sm:p-3">
-                        <p className="text-[10px] sm:text-xs uppercase tracking-wide text-muted-foreground">Route</p>
-                        <p className="text-xs sm:text-sm font-semibold mt-0.5 sm:mt-1 truncate">{fromCity} → {toCity}</p>
-                        <Badge variant="secondary" className="mt-1 capitalize text-[10px]">{activeRoute.type}</Badge>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-center mb-4 sm:mb-6">
+                      <div className="rounded-lg border border-border/50 bg-card/60 p-3">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Route</p>
+                        <p className="text-sm font-semibold mt-1 truncate">{fromCity} → {toCity}</p>
+                        <Badge variant="secondary" className="mt-1 capitalize text-xs">{activeRoute.type}</Badge>
                       </div>
-                      <div className="rounded-lg border border-border/50 bg-card/60 p-2.5 sm:p-3">
-                        <p className="text-[10px] sm:text-xs uppercase tracking-wide text-muted-foreground">Distance</p>
-                        <p className="text-base sm:text-xl lg:text-2xl font-bold text-primary mt-0.5 sm:mt-1">{activeRoute.totalDistance}<span className="text-xs sm:text-sm ml-0.5">km</span></p>
+                      <div className="rounded-lg border border-border/50 bg-card/60 p-3">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Distance</p>
+                        <p className="text-xl sm:text-2xl font-bold text-primary mt-1">{activeRoute.totalDistance}<span className="text-sm ml-0.5">km</span></p>
                       </div>
-                      <div className="rounded-lg border border-border/50 bg-card/60 p-2.5 sm:p-3">
-                        <p className="text-[10px] sm:text-xs uppercase tracking-wide text-muted-foreground">Travel Time</p>
-                        <p className="text-xs sm:text-base lg:text-lg font-semibold text-foreground mt-0.5 sm:mt-1">{activeRoute.totalTime}</p>
+                      <div className="rounded-lg border border-border/50 bg-card/60 p-3">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Travel Time</p>
+                        <p className="text-lg font-semibold text-foreground mt-1">{activeRoute.totalTime}</p>
                       </div>
-                      <div className="rounded-lg border border-border/50 bg-card/60 p-2.5 sm:p-3">
-                        <p className="text-[10px] sm:text-xs uppercase tracking-wide text-muted-foreground">Toll Gates</p>
-                        <p className="text-base sm:text-xl lg:text-2xl font-bold text-primary mt-0.5 sm:mt-1">{activeRoute.tollInfo?.numberOfGates ?? 0}</p>
-                        <p className="text-[10px] sm:text-xs text-muted-foreground">${tollFees[vehicleTypes[selectedVehicle].tollCategory as keyof typeof tollFees].toFixed(2)} each</p>
+                      <div className="rounded-lg border border-border/50 bg-card/60 p-3">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Toll Gates</p>
+                        <p className="text-xl sm:text-2xl font-bold text-primary mt-1">{activeRoute.tollInfo?.numberOfGates ?? 0}</p>
+                        <p className="text-xs text-muted-foreground">${tollFees[vehicleTypes[selectedVehicle].tollCategory as keyof typeof tollFees].toFixed(2)} each</p>
                       </div>
-                      <div className="rounded-lg border border-border/50 bg-card/60 p-2.5 sm:p-3 col-span-2 sm:col-span-1">
-                        <p className="text-[10px] sm:text-xs uppercase tracking-wide text-muted-foreground">Fuel Cost</p>
-                        <p className="text-xs sm:text-base lg:text-lg font-bold text-primary mt-0.5 sm:mt-1">${activeRoute.fuelCost?.toFixed(2) ?? "-"}</p>
-                        <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{vehicleTypes[selectedVehicle].name.split(" ")[0]} ({vehicleTypes[selectedVehicle].consumption} km/L)</p>
+                      <div className="rounded-lg border border-border/50 bg-card/60 p-3 col-span-2 sm:col-span-1">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Fuel Cost</p>
+                        <p className="text-lg font-bold text-primary mt-1">${activeRoute.fuelCost?.toFixed(2) ?? "-"}</p>
+                        <p className="text-xs text-muted-foreground">{vehicleTypes[selectedVehicle].name}</p>
                       </div>
                     </div>
 
                     <Tabs defaultValue="route" className="w-full">
-                      <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 h-auto gap-1">
-                        <TabsTrigger value="route" className="text-[10px] sm:text-xs px-2 sm:px-3"><span className="hidden sm:inline">Route Details</span><span className="sm:hidden">Route</span></TabsTrigger>
-                        <TabsTrigger value="costs" className="text-[10px] sm:text-xs px-2 sm:px-3">Costs</TabsTrigger>
-                        <TabsTrigger value="tolls" className="text-[10px] sm:text-xs px-2 sm:px-3"><span className="hidden sm:inline">Toll Gates ({activeRoute.tollInfo?.numberOfGates ?? 0})</span><span className="sm:hidden">Tolls ({activeRoute.tollInfo?.numberOfGates ?? 0})</span></TabsTrigger>
-                        <TabsTrigger value="borders" className="text-[10px] sm:text-xs px-2 sm:px-3"><span className="hidden sm:inline">Border Info</span><span className="sm:hidden">Borders</span></TabsTrigger>
+                      <TabsList className="grid w-full grid-cols-4 h-auto">
+                        <TabsTrigger value="route" className="text-xs px-2 py-2">Route</TabsTrigger>
+                        <TabsTrigger value="costs" className="text-xs px-2 py-2">Costs</TabsTrigger>
+                        <TabsTrigger value="tolls" className="text-xs px-2 py-2">Tolls ({activeRoute.tollInfo?.numberOfGates ?? 0})</TabsTrigger>
+                        <TabsTrigger value="borders" className="text-xs px-2 py-2">Borders</TabsTrigger>
                       </TabsList>
 
-                      <TabsContent value="route" className="space-y-2 sm:space-y-3 mt-3 sm:mt-4">
-                        <h4 className="font-medium text-xs sm:text-sm">Route Breakdown:</h4>
+                      <TabsContent value="route" className="space-y-3 mt-4">
+                        <h4 className="font-medium text-sm">Route Breakdown:</h4>
                         {activeRoute.segments?.map((segment, index) => (
-                          <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between bg-card/60 border border-border/50 rounded-md p-2.5 sm:p-3 gap-1.5 sm:gap-2">
-                            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                              <span className="font-medium text-xs sm:text-sm">{segment.from}</span>
-                              <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
-                              <span className="font-medium text-xs sm:text-sm">{segment.to}</span>
-                              {segment.scenic && <Badge variant="outline" className="text-[10px]">Scenic</Badge>}
-                              {segment.tollGates && segment.tollGates.length > 0 && <Badge variant="outline" className="text-[10px]">{segment.tollGates.length} Toll{segment.tollGates.length > 1 ? "s" : ""}</Badge>}
+                          <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between bg-card/60 border border-border/50 rounded-lg p-3 gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-sm">{segment.from}</span>
+                              <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <span className="font-medium text-sm">{segment.to}</span>
+                              {segment.scenic && <Badge variant="outline" className="text-xs">Scenic</Badge>}
+                              {segment.tollGates && segment.tollGates.length > 0 && <Badge variant="outline" className="text-xs">{segment.tollGates.length} Toll{segment.tollGates.length > 1 ? "s" : ""}</Badge>}
                             </div>
-                            <div className="flex items-center gap-2 sm:gap-4 text-[10px] sm:text-xs">
+                            <div className="flex items-center gap-3 text-xs">
                               <span className="text-muted-foreground">{segment.distance} km</span>
                               <span className="text-primary">{segment.time}</span>
-                              <Badge variant="secondary" className="text-[10px] capitalize">{segment.routeType.replace("_", " ")}</Badge>
+                              <Badge variant="secondary" className="text-xs capitalize">{segment.routeType.replace("_", " ")}</Badge>
                             </div>
                           </div>
                         ))}
                       </TabsContent>
 
-                      <TabsContent value="costs" className="space-y-3 sm:space-y-4 mt-3 sm:mt-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                          <Card className="p-3 sm:p-4">
-                            <div className="flex items-center gap-2 mb-2"><Fuel className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" /><h4 className="font-medium text-xs sm:text-sm">Fuel Costs</h4></div>
-                            <div className="space-y-1.5 sm:space-y-2 text-[10px] sm:text-sm">
+                      <TabsContent value="costs" className="space-y-4 mt-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <Card className="p-4">
+                            <div className="flex items-center gap-2 mb-3"><Fuel className="h-5 w-5 text-primary shrink-0" /><h4 className="font-medium text-sm">Fuel Costs</h4></div>
+                            <div className="space-y-2 text-sm">
                               <div className="flex justify-between"><span>Distance:</span><span>{activeRoute.totalDistance} km</span></div>
                               <div className="flex justify-between"><span>Fuel needed:</span><span>{activeRoute.totalDistance ? (activeRoute.totalDistance / vehicleTypes[selectedVehicle].consumption).toFixed(1) : "-"} L</span></div>
                               <div className="flex justify-between"><span>Price per litre:</span><span>${FUEL_PRICE_USD}</span></div>
-                              <div className="flex justify-between font-semibold border-t pt-1.5 sm:pt-2"><span>Total Fuel Cost:</span><span className="text-primary">${activeRoute.fuelCost?.toFixed(2) ?? "-"}</span></div>
+                              <div className="flex justify-between font-semibold border-t pt-2"><span>Total Fuel Cost:</span><span className="text-primary">${activeRoute.fuelCost?.toFixed(2) ?? "-"}</span></div>
                             </div>
                           </Card>
-                          <Card className="p-3 sm:p-4">
-                            <div className="flex items-center gap-2 mb-2"><DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" /><h4 className="font-medium text-xs sm:text-sm">Total Trip Cost</h4></div>
-                            <div className="space-y-1.5 sm:space-y-2 text-[10px] sm:text-sm">
+                          <Card className="p-4">
+                            <div className="flex items-center gap-2 mb-3"><DollarSign className="h-5 w-5 text-primary shrink-0" /><h4 className="font-medium text-sm">Total Trip Cost</h4></div>
+                            <div className="space-y-2 text-sm">
                               <div className="flex justify-between"><span>Fuel:</span><span>${activeRoute.fuelCost?.toFixed(2) ?? "-"}</span></div>
                               <div className="flex justify-between"><span>Tolls ({activeRoute.tollInfo?.numberOfGates ?? 0}):</span><span>${activeRoute.tollInfo?.totalCost?.toFixed(2) ?? "-"}</span></div>
-                              <div className="flex justify-between font-semibold border-t pt-1.5 sm:pt-2 text-xs sm:text-lg"><span>Total:</span><span className="text-primary">${(activeRoute.fuelCost && activeRoute.tollInfo?.totalCost) ? (activeRoute.fuelCost + activeRoute.tollInfo.totalCost).toFixed(2) : "-"}</span></div>
+                              <div className="flex justify-between font-semibold border-t pt-2 text-base"><span>Total:</span><span className="text-primary">${(activeRoute.fuelCost && activeRoute.tollInfo?.totalCost) ? (activeRoute.fuelCost + activeRoute.tollInfo.totalCost).toFixed(2) : "-"}</span></div>
                             </div>
                           </Card>
                         </div>
-                        <Card className="p-3 sm:p-4 bg-secondary/40 border-border/50">
-                          <h4 className="font-medium text-xs sm:text-sm mb-2 sm:mb-3">Zimbabwe Toll Fee Structure</h4>
-                          <div className="grid grid-cols-2 lg:grid-cols-3 gap-1.5 sm:gap-2 text-[10px] sm:text-sm">
+                        <Card className="p-4 bg-secondary/40 border-border/50">
+                          <h4 className="font-medium text-sm mb-3">Zimbabwe Toll Fee Structure</h4>
+                          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
                             {Object.entries(tollFees).map(([category, fee]) => (<div key={category} className="flex justify-between"><span className="capitalize">{category}:</span><span className="font-semibold">${fee.toFixed(2)}</span></div>))}
                           </div>
                         </Card>
                       </TabsContent>
 
-                      <TabsContent value="tolls" className="space-y-2 sm:space-y-3 mt-3 sm:mt-4">
+                      <TabsContent value="tolls" className="space-y-3 mt-4">
                         {activeRoute.tollInfo?.numberOfGates ? (
                           <>
-                            <div className="flex justify-between items-center"><h4 className="font-medium text-xs sm:text-sm">Toll Gates:</h4><Badge variant="outline" className="text-[10px]">{activeRoute.tollInfo.numberOfGates} Gate{activeRoute.tollInfo.numberOfGates > 1 ? "s" : ""}</Badge></div>
+                            <div className="flex justify-between items-center"><h4 className="font-medium text-sm">Toll Gates:</h4><Badge variant="outline" className="text-xs">{activeRoute.tollInfo.numberOfGates} Gate{activeRoute.tollInfo.numberOfGates > 1 ? "s" : ""}</Badge></div>
                             {activeRoute.tollInfo.tollGates?.map((toll, index) => (
-                              <div key={index} className="bg-card/60 border border-border/50 rounded-md p-2.5 sm:p-3">
-                                <div className="flex flex-col sm:flex-row justify-between items-start gap-1.5 sm:gap-2">
-                                  <div className="flex-1 min-w-0"><h5 className="font-medium text-xs sm:text-sm truncate">{toll.name}</h5><p className="text-[10px] sm:text-xs text-muted-foreground truncate">{toll.location}</p><p className="text-[10px] sm:text-xs text-muted-foreground">Highway: {toll.highway}</p></div>
-                                  <div className="text-right shrink-0"><Badge variant="outline" className="text-[10px] mb-1">${toll.cost.toFixed(2)}</Badge><p className="text-[10px] sm:text-xs text-muted-foreground">{toll.kmFromHarare ? `${toll.kmFromHarare}km from Harare` : toll.kmFromBulawayo ? `${toll.kmFromBulawayo}km from Bulawayo` : ""}</p></div>
+                              <div key={index} className="bg-card/60 border border-border/50 rounded-lg p-3">
+                                <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
+                                  <div className="flex-1 min-w-0"><h5 className="font-medium text-sm truncate">{toll.name}</h5><p className="text-xs text-muted-foreground truncate">{toll.location}</p><p className="text-xs text-muted-foreground">Highway: {toll.highway}</p></div>
+                                  <div className="text-right shrink-0"><Badge variant="outline" className="text-xs mb-1">${toll.cost.toFixed(2)}</Badge><p className="text-xs text-muted-foreground">{toll.kmFromHarare ? `${toll.kmFromHarare}km from Harare` : toll.kmFromBulawayo ? `${toll.kmFromBulawayo}km from Bulawayo` : ""}</p></div>
                                 </div>
                               </div>
                             ))}
-                            <div className="text-right font-semibold text-xs sm:text-sm bg-primary/10 text-primary border border-primary/20 p-2.5 sm:p-3 rounded-md">
+                            <div className="text-right font-semibold text-sm bg-primary/10 text-primary border border-primary/20 p-3 rounded-lg">
                               Total: ${activeRoute.tollInfo.totalCost?.toFixed(2)}
-                              <p className="text-[10px] text-muted-foreground font-normal">{activeRoute.tollInfo.numberOfGates} × ${tollFees[vehicleTypes[selectedVehicle].tollCategory as keyof typeof tollFees].toFixed(2)} each</p>
+                              <p className="text-xs text-muted-foreground font-normal">{activeRoute.tollInfo.numberOfGates} × ${tollFees[vehicleTypes[selectedVehicle].tollCategory as keyof typeof tollFees].toFixed(2)} each</p>
                             </div>
                           </>
-                        ) : (<div className="text-center py-6 sm:py-8"><p className="text-muted-foreground text-xs sm:text-sm mb-1">No toll gates on this route</p><p className="text-[10px] text-muted-foreground">Uses secondary roads or urban streets</p></div>)}
+                        ) : (<div className="text-center py-8"><p className="text-muted-foreground text-sm mb-1">No toll gates on this route</p><p className="text-xs text-muted-foreground">Uses secondary roads or urban streets</p></div>)}
                       </TabsContent>
 
-                      <TabsContent value="borders" className="space-y-2 sm:space-y-3 mt-3 sm:mt-4">
+                      <TabsContent value="borders" className="space-y-3 mt-4">
                         {activeRoute.borderCrossings?.length ? (
                           <>
-                            <h4 className="font-medium text-xs sm:text-sm">Provincial Border Crossings:</h4>
+                            <h4 className="font-medium text-sm">Provincial Border Crossings:</h4>
                             {activeRoute.borderCrossings.map((crossing, index) => (
-                              <div key={index} className="bg-card/60 border border-border/50 rounded-md p-2.5 sm:p-3">
-                                <div className="flex items-center gap-2"><MapPin className="h-3 w-3 sm:h-4 sm:w-4 text-primary shrink-0" /><div className="min-w-0 flex-1"><p className="font-medium text-xs sm:text-sm">{crossing.from} → {crossing.to}</p><p className="text-[10px] sm:text-xs text-muted-foreground truncate">At: {crossing.location}</p></div></div>
+                              <div key={index} className="bg-card/60 border border-border/50 rounded-lg p-3">
+                                <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-primary shrink-0" /><div className="min-w-0 flex-1"><p className="font-medium text-sm">{crossing.from} → {crossing.to}</p><p className="text-xs text-muted-foreground truncate">At: {crossing.location}</p></div></div>
                               </div>
                             ))}
-                            <div className="bg-primary/5 border border-primary/20 rounded-md p-2.5 sm:p-3">
-                              <div className="flex items-start gap-2"><AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 text-primary mt-0.5 shrink-0" /><div className="text-[10px] sm:text-sm text-foreground/90"><p className="font-medium">Border Crossing Info:</p><p>Ensure proper identification when crossing provincial boundaries.</p></div></div>
+                            <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
+                              <div className="flex items-start gap-2"><AlertTriangle className="h-4 w-4 text-primary mt-0.5 shrink-0" /><div className="text-sm text-foreground/90"><p className="font-medium">Border Crossing Info:</p><p>Ensure proper identification when crossing provincial boundaries.</p></div></div>
                             </div>
                           </>
-                        ) : (<p className="text-muted-foreground text-center py-4 text-xs sm:text-sm">No provincial border crossings</p>)}
+                        ) : (<p className="text-muted-foreground text-center py-4 text-sm">No provincial border crossings</p>)}
                       </TabsContent>
                     </Tabs>
                   </CardContent>
@@ -429,33 +443,43 @@ export default function DistanceTableSystem() {
         <Card className="border-border/60 bg-card/80 backdrop-blur shadow-xl shadow-black/20">
           <CardHeader className="pb-3 sm:pb-4 border-b border-border/50 px-4 sm:px-6">
             <CardTitle className="font-serif text-lg sm:text-xl lg:text-2xl">Distance Table</CardTitle>
-            <CardDescription className="text-xs sm:text-sm">Complete distance table between Zimbabwe cities</CardDescription>
+            <CardDescription className="text-xs sm:text-sm">Complete distance table between Zimbabwe cities ({cities.length} cities, {distanceData.length} routes)</CardDescription>
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 pt-3 sm:pt-4">
-              <div className="relative flex-1"><Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" /><Input placeholder="Search cities..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 sm:pl-10 h-9 sm:h-10 text-xs sm:text-sm" /></div>
-              <Select value={fromCity} onValueChange={setFromCity}><SelectTrigger className="w-full sm:w-48 h-9 sm:h-10 text-xs sm:text-sm"><SelectValue placeholder="Filter by city" /></SelectTrigger><SelectContent><SelectItem value="all">All cities</SelectItem>{cities.map((city) => (<SelectItem key={city} value={city}>{city}</SelectItem>))}</SelectContent></Select>
-              {(searchTerm || fromCity || toCity) && <Button variant="outline" onClick={() => { setSearchTerm(""); setFromCity(""); setToCity(""); }} className="h-9 sm:h-10 text-xs sm:text-sm"><span className="hidden sm:inline">Clear Filters</span><span className="sm:hidden">Clear</span></Button>}
+              <div className="relative flex-1"><Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Search cities..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 h-10 sm:h-11 text-sm" /></div>
+              <Select value={fromCity} onValueChange={setFromCity}>
+                <SelectTrigger className="w-full sm:w-52 h-10 sm:h-11 text-sm">
+                  <SelectValue placeholder="Filter by departure city" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  <SelectItem value="">All cities</SelectItem>
+                  {cities.map((city) => (
+                    <SelectItem key={city} value={city}>{city}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {(searchTerm || fromCity || toCity) && <Button variant="outline" onClick={() => { setSearchTerm(""); setFromCity(""); setToCity(""); }} className="h-10 sm:h-11 text-sm w-full sm:w-auto">Clear Filters</Button>}
             </div>
           </CardHeader>
           <CardContent className="px-4 sm:px-6">
             <div className="rounded-xl border border-border/60 overflow-hidden">
-              <div className="overflow-auto max-h-[350px] sm:max-h-[480px]">
+              <div className="overflow-auto max-h-[400px] sm:max-h-[480px]">
                 <Table className="border-collapse">
-                  <TableHeader className="sticky top-0 z-10"><TableRow className="border-0 hover:bg-transparent bg-secondary [&>th]:bg-secondary"><TableHead className="min-w-[180px] sm:min-w-[220px] h-10 sm:h-12 text-primary font-semibold uppercase tracking-wider text-[10px] sm:text-xs px-3 sm:px-4">Route</TableHead><TableHead className="text-right min-w-[80px] sm:min-w-[110px] h-10 sm:h-12 text-primary font-semibold uppercase tracking-wider text-[10px] sm:text-xs px-3 sm:px-4">Distance</TableHead><TableHead className="text-right min-w-[70px] sm:min-w-[90px] h-10 sm:h-12 text-primary font-semibold uppercase tracking-wider text-[10px] sm:text-xs px-3 sm:px-4">Time</TableHead><TableHead className="text-right min-w-[90px] sm:min-w-[110px] h-10 sm:h-12 text-primary font-semibold uppercase tracking-wider text-[10px] sm:text-xs px-3 sm:px-4">Route Type</TableHead><TableHead className="text-right min-w-[100px] sm:min-w-[120px] h-10 sm:h-12 text-primary font-semibold uppercase tracking-wider text-[10px] sm:text-xs px-3 sm:px-4">Features</TableHead></TableRow></TableHeader>
+                  <TableHeader className="sticky top-0 z-10"><TableRow className="border-0 hover:bg-transparent bg-secondary [&>th]:bg-secondary"><TableHead className="min-w-[180px] sm:min-w-[220px] h-10 sm:h-12 text-primary font-semibold uppercase tracking-wider text-xs px-4">Route</TableHead><TableHead className="text-right min-w-[80px] sm:min-w-[100px] h-10 sm:h-12 text-primary font-semibold uppercase tracking-wider text-xs px-4">Distance</TableHead><TableHead className="text-right min-w-[70px] sm:min-w-[80px] h-10 sm:h-12 text-primary font-semibold uppercase tracking-wider text-xs px-4">Time</TableHead><TableHead className="text-right min-w-[90px] sm:min-w-[100px] h-10 sm:h-12 text-primary font-semibold uppercase tracking-wider text-xs px-4">Route Type</TableHead><TableHead className="text-right min-w-[80px] sm:min-w-[100px] h-10 sm:h-12 text-primary font-semibold uppercase tracking-wider text-xs px-4">Features</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {filteredData.length > 0 ? filteredData.map((item, index) => (
                       <TableRow key={index} className="border-0 odd:bg-card even:bg-secondary/30 hover:bg-primary/5">
-                        <TableCell className="py-2.5 sm:py-3.5 px-3 sm:px-4"><div className="flex items-center gap-1.5 sm:gap-2.5"><span className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-primary/70 shrink-0" /><span className="font-medium text-[11px] sm:text-sm truncate">{item.from}</span><ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground shrink-0" /><span className="text-[11px] sm:text-sm text-muted-foreground truncate">{item.to}</span></div></TableCell>
-                        <TableCell className="text-right py-2.5 sm:py-3.5 px-3 sm:px-4"><span className="inline-flex items-center rounded-md bg-primary/10 px-2 sm:px-2.5 py-0.5 sm:py-1 font-semibold text-[11px] sm:text-sm text-primary tabular-nums">{item.distance} km</span></TableCell>
-                        <TableCell className="text-right text-[11px] sm:text-sm text-foreground/80 tabular-nums py-2.5 sm:py-3.5 px-3 sm:px-4">{item.time}</TableCell>
-                        <TableCell className="text-right py-2.5 sm:py-3.5 px-3 sm:px-4"><Badge variant="secondary" className="capitalize text-[10px] sm:text-xs font-normal">{item.routeType?.replace("_", " ") || "main road"}</Badge></TableCell>
-                        <TableCell className="text-right py-2.5 sm:py-3.5 px-3 sm:px-4"><div className="flex gap-1 justify-end flex-wrap">{item.scenic && <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">Scenic</Badge>}{item.tollGates && item.tollGates.length > 0 && <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">{item.tollGates.length} Toll{item.tollGates.length > 1 ? "s" : ""}</Badge>}{item.alternative && <Badge variant="outline" className="text-[10px]">Alt</Badge>}</div></TableCell>
+                        <TableCell className="py-3 sm:py-4 px-4"><div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-primary/70 shrink-0" /><span className="font-medium text-sm truncate">{item.from}</span><ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" /><span className="text-sm text-muted-foreground truncate">{item.to}</span></div></TableCell>
+                        <TableCell className="text-right py-3 sm:py-4 px-4"><span className="inline-flex items-center rounded-md bg-primary/10 px-2.5 py-1 font-semibold text-sm text-primary tabular-nums">{item.distance} km</span></TableCell>
+                        <TableCell className="text-right text-sm text-foreground/80 tabular-nums py-3 sm:py-4 px-4">{item.time}</TableCell>
+                        <TableCell className="text-right py-3 sm:py-4 px-4"><Badge variant="secondary" className="capitalize text-xs font-normal">{item.routeType?.replace("_", " ") || "main road"}</Badge></TableCell>
+                        <TableCell className="text-right py-3 sm:py-4 px-4"><div className="flex gap-1 justify-end flex-wrap">{item.scenic && <Badge variant="outline" className="text-xs border-primary/30 text-primary">Scenic</Badge>}{item.tollGates && item.tollGates.length > 0 && <Badge variant="outline" className="text-xs border-primary/30 text-primary">{item.tollGates.length} Toll{item.tollGates.length > 1 ? "s" : ""}</Badge>}{item.alternative && <Badge variant="outline" className="text-xs">Alt</Badge>}</div></TableCell>
                       </TableRow>
-                    )) : (<TableRow className="border-0"><TableCell colSpan={5} className="text-center py-8 sm:py-12 text-muted-foreground text-xs sm:text-sm">No routes found</TableCell></TableRow>)}
+                    )) : (<TableRow className="border-0"><TableCell colSpan={5} className="text-center py-8 sm:py-12 text-muted-foreground text-sm">No routes found</TableCell></TableRow>)}
                   </TableBody>
                 </Table>
               </div>
             </div>
-            <div className="mt-3 sm:mt-4 text-[10px] sm:text-sm text-muted-foreground">Showing {filteredData.length} of {distanceData.length} routes</div>
+            <div className="mt-3 sm:mt-4 text-xs sm:text-sm text-muted-foreground">Showing {filteredData.length} of {distanceData.length} routes</div>
           </CardContent>
         </Card>
 
