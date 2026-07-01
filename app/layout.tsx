@@ -1,21 +1,7 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Inter, Cormorant_Garamond } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
 import "./globals.css"
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-sans",
-  display: "swap",
-})
-
-const cormorant = Cormorant_Garamond({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--font-serif",
-  display: "swap",
-})
 
 export const metadata: Metadata = {
   title: "Zimbabwe Distance Calculator",
@@ -39,7 +25,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`dark bg-background ${inter.variable} ${cormorant.variable}`}
+      className="dark bg-background"
       suppressHydrationWarning
     >
       <body>
